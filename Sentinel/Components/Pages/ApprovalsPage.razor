@@ -1,0 +1,59 @@
+@page "/approvals"
+@inherits OperatorComponentBase
+@implements IDisposable
+@inject IApprovalService Approvals
+@inject IConversationEvents Events
+
+<PageTitle>Approvals</PageTitle>
+
+<h1 class="h3 mb-3">Approvals</h1>
+@if (Message is { } message)
+{
+    <div class="alert alert-info" id="approvals-message">@message</div>
+}
+@if (Pending.Count == 0)
+{
+    <p class="text-muted" id="approvals-empty">Nothing is waiting for your approval.</p>
+}
+@foreach (var approval in Pending)
+{
+    <ApprovalCard @key="approval.Id" Approval="approval" OnDecided="DecideAsync" />
+}
+
+@code {
+    private IDisposable? _subscription;
+
+    private IReadOnlyList<PendingApproval> Pending { get; set; } = [];
+
+    private string? Message { get; set; }
+
+    public void Dispose() => _subscription?.Dispose();
+
+    protected override async Task OnOperatorReadyAsync()
+    {
+        _subscription?.Dispose();
+        _subscription = Events.SubscribeAll(OperatorId, OnEvent);
+        Pending = await Approvals.GetPendingAsync(OperatorId);
+    }
+
+    private async Task DecideAsync(ApprovalDecision decision)
+    {
+        var decided = await Approvals.DecideAsync(OperatorId, decision.ApprovalId, decision.Approved, decision.Reason, CancellationToken.None);
+        Message = decided ? Outcome(decision.Approved) : "That approval was already decided.";
+        Pending = await Approvals.GetPendingAsync(OperatorId);
+    }
+
+    private static string Outcome(bool approved) => approved ? "Approved." : "Rejected.";
+
+    private void OnEvent(ConversationEvent conversationEvent)
+    {
+        if (conversationEvent.Entry?.Kind == TranscriptEntryKind.ApprovalRequested)
+        {
+            _ = InvokeAsync(async () =>
+            {
+                Pending = await Approvals.GetPendingAsync(OperatorId);
+                StateHasChanged();
+            });
+        }
+    }
+}

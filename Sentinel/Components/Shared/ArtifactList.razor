@@ -1,0 +1,46 @@
+<div class="card" id="@Id">
+    @if (Items.Count == 0)
+    {
+        <div class="card-body text-muted small">No artifacts.</div>
+    }
+    else
+    {
+        <ul class="list-group list-group-flush">
+            @foreach (var item in Items)
+            {
+                <li class="list-group-item" id="@DisplayMapper.ElementId("artifact", item.Id)">
+                    <div class="d-flex justify-content-between">
+                        <span class="fw-semibold">@item.Title</span>
+                        <span class="badge bg-secondary">@item.Kind</span>
+                    </div>
+                    <div class="small text-muted">@DisplayMapper.Timestamp(item.ProducedAt)</div>
+                    @if (item.Summary is { } summary)
+                    {
+                        <p class="small mb-1">@summary</p>
+                    }
+                    @if (item.Text is { } text)
+                    {
+                        <details>
+                            <summary class="small">Show content</summary>
+                            <pre class="small mb-0 text-break">@text</pre>
+                        </details>
+                    }
+                    @if (item.Link is { } link)
+                    {
+                        <a href="@link" class="small" target="_blank" rel="noopener noreferrer">Open</a>
+                    }
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    [Parameter]
+    [EditorRequired]
+    public IReadOnlyList<ArtifactItem> Items { get; set; } = [];
+
+    [Parameter]
+    [EditorRequired]
+    public string? Id { get; set; }
+}

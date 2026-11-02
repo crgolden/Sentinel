@@ -1,0 +1,19 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path=".gitignore" />
+    <File Path="AGENTS.md" />
+    <File Path="ARCHITECTURE.md" />
+    <File Path="coverage.settings.xml" />
+    <File Path="DESIGN.md" />
+    <File Path="dotnet-tools.json" />
+    <File Path="gate.ps1" />
+    <File Path="global.json" />
+    <File Path="LISTENERS.md" />
+    <File Path="README.md" />
+    <File Path="TESTING.md" />
+  </Folder>
+  <Project Path="Sentinel.Tests.Integration/Sentinel.Tests.Integration.csproj" />
+  <Project Path="Sentinel.Tests.Unit/Sentinel.Tests.Unit.csproj" />
+  <Project Path="Sentinel/Sentinel.csproj" />
+</Solution>

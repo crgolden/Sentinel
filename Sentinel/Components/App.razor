@@ -1,0 +1,37 @@
+@inject IHostEnvironment Environment
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <link rel="icon" href="favicon.ico" />
+    @if (Environment.IsDevelopment())
+    {
+        <link rel="stylesheet" href="lib/bootstrap/dist/css/bootstrap.min.css" />
+    }
+    else
+    {
+        <link rel="stylesheet"
+              href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+              integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+              crossorigin="anonymous" />
+    }
+    <HeadOutlet @rendermode="InteractiveServer" />
+</head>
+<body class="d-flex flex-column min-vh-100 bg-light">
+    <Routes @rendermode="InteractiveServer" />
+    <script src="@Assets["_framework/blazor.web.js"]"></script>
+    @if (Environment.IsDevelopment())
+    {
+        <script src="lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    }
+    else
+    {
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+                integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
+                crossorigin="anonymous"></script>
+    }
+</body>
+</html>

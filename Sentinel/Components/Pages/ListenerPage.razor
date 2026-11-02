@@ -1,0 +1,86 @@
+@page "/listeners/{ListenerId}"
+@inherits OperatorComponentBase
+@implements IDisposable
+@inject IListenerDirectory Directory
+@inject IFeedReader Feeds
+
+<PageTitle>@(Snapshot?.Definition.DisplayName ?? ListenerId)</PageTitle>
+
+@if (Snapshot is not { } snapshot)
+{
+    <h1 class="h4" id="listener-missing">Unknown listener</h1>
+    <p class="text-muted">No listener with this id is configured.</p>
+}
+else
+{
+    <div class="d-flex align-items-center gap-3 mb-4">
+        <h1 class="h3 mb-0" id="listener-title">@snapshot.Definition.DisplayName</h1>
+        <StatusBadge State="snapshot.State" Id="listener-page-state" />
+        @if (snapshot.Definition.Kind == ListenerKind.Master)
+        {
+            <span class="badge bg-primary" id="listener-page-master">Master session</span>
+        }
+    </div>
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <ChatPanel Conversation="Conversation" Title="Conversation" Enabled="@(snapshot.State == ListenerState.Online)" />
+        </div>
+        <div class="col-lg-5">
+            <div class="card mb-4" id="listener-status">
+                <div class="card-header fw-semibold">Status</div>
+                @if (Status is { } status)
+                {
+                    <div class="card-body">
+                        <p class="mb-2"><span class="badge @DisplayMapper.BadgeClass(status.Health)" id="listener-status-health">@status.Health</span> @status.Summary</p>
+                        <p class="small text-muted mb-0">Reported @DisplayMapper.Timestamp(status.GeneratedAt)</p>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        @foreach (var check in status.Checks)
+                        {
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>@check.Name <span class="small text-muted">@check.Detail</span></span>
+                                <span class="badge @DisplayMapper.BadgeClass(check.Health)">@check.Health</span>
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <div class="card-body text-muted small" id="listener-status-none">This listener has not published a status feed.</div>
+                }
+            </div>
+            <ArtifactList Items="Artifacts" Id="listener-artifacts" />
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string ListenerId { get; set; } = nameof(ListenerId);
+
+    private ListenerSnapshot? Snapshot { get; set; }
+
+    private ConversationKey? Conversation { get; set; }
+
+    private ListenerStatusFeed? Status { get; set; }
+
+    private IReadOnlyList<ArtifactItem> Artifacts { get; set; } = [];
+
+    public void Dispose() => Directory.Changed -= OnDirectoryChanged;
+
+    protected override async Task OnOperatorReadyAsync()
+    {
+        Directory.Changed -= OnDirectoryChanged;
+        Directory.Changed += OnDirectoryChanged;
+        Snapshot = Directory.Find(ListenerId);
+        Conversation = new ConversationKey(OperatorId, ListenerId);
+        Status = await Feeds.GetStatusAsync(ListenerId);
+        Artifacts = (await Feeds.GetArtifactsAsync(ListenerId))?.Items ?? [];
+    }
+
+    private void OnDirectoryChanged() => _ = InvokeAsync(() =>
+    {
+        Snapshot = Directory.Find(ListenerId);
+        StateHasChanged();
+    });
+}

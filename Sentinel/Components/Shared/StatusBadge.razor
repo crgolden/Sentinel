@@ -1,0 +1,11 @@
+<span class="badge @DisplayMapper.BadgeClass(State)" id="@Id">@DisplayMapper.Label(State)</span>
+
+@code {
+    [Parameter]
+    [EditorRequired]
+    public ListenerState State { get; set; }
+
+    [Parameter]
+    [EditorRequired]
+    public string? Id { get; set; }
+}

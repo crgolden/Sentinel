@@ -1,0 +1,264 @@
+name: Build and deploy ASP.Net Core app to Azure Web App - crgolden-sentinel
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  sync-lock-files:
+    name: Sync Dependabot lock files
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: read
+
+    steps:
+      - uses: actions/checkout@v6
+        if: github.actor == 'dependabot[bot]'
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Set up .NET Core
+        if: github.actor == 'dependabot[bot]'
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.x'
+
+      - name: Regenerate lock files and push
+        if: github.actor == 'dependabot[bot]'
+        env:
+          NuGetPackageSourceCredentials_GitHub: Username=${{ github.actor }};Password=${{ secrets.GITHUB_TOKEN }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          dotnet restore --force-evaluate
+          if (-not (git status --porcelain -- '*packages.lock.json')) {
+            Write-Output 'Lock files already consistent; nothing to push.'
+            exit 0
+          }
+          git config user.name 'dependabot[bot]'
+          git config user.email '49699333+dependabot[bot]@users.noreply.github.com'
+          git add -- '*packages.lock.json'
+          git commit -m 'Regenerate packages.lock.json for transitive project references'
+          git push origin "HEAD:$env:HEAD_REF"
+
+  build:
+    name: Build and analyze
+    needs: sync-lock-files
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Set up JDK 21
+        if: github.actor != 'dependabot[bot]'
+        uses: actions/setup-java@v5
+        with:
+          java-version: 21
+          distribution: 'zulu'
+
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.actor == 'dependabot[bot]' && github.head_ref || '' }}
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json', '**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Cache SonarQube Cloud packages
+        if: github.actor != 'dependabot[bot]'
+        uses: actions/cache@v5
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: Cache SonarQube Cloud scanner
+        id: cache-sonar-scanner
+        if: github.actor != 'dependabot[bot]'
+        uses: actions/cache@v5
+        with:
+          path: ${{ runner.temp }}/scanner
+          key: ${{ runner.os }}-sonar-scanner
+          restore-keys: ${{ runner.os }}-sonar-scanner
+
+      - name: Install SonarQube Cloud scanner
+        if: steps.cache-sonar-scanner.outputs.cache-hit != 'true' && github.actor != 'dependabot[bot]'
+        run: |
+          New-Item -Path ${{ runner.temp }}/scanner -ItemType Directory
+          dotnet tool update dotnet-sonarscanner --tool-path ${{ runner.temp }}/scanner
+
+      - name: Set up .NET Core
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.x'
+
+      - name: Cache dotnet global tools
+        id: cache-dotnet-tools
+        uses: actions/cache@v5
+        with:
+          path: ~/.dotnet/tools
+          key: ${{ runner.os }}-dotnet-tools-${{ hashFiles('**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-dotnet-tools-
+
+      - name: Install dotnet-coverage
+        if: steps.cache-dotnet-tools.outputs.cache-hit != 'true'
+        run: dotnet tool install --global dotnet-coverage
+
+      - name: Begin Sonar analysis
+        if: github.actor != 'dependabot[bot]'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+          SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
+        run: |
+          ${{ runner.temp }}/scanner/dotnet-sonarscanner begin `
+            /k:"$env:SONAR_PROJECT_KEY" `
+            /o:"$env:SONAR_ORGANIZATION" `
+            /d:sonar.token="$env:SONAR_TOKEN" `
+            /d:sonar.host.url="https://sonarcloud.io" `
+            /d:sonar.cs.opencover.reportsPaths="coverage.opencover.xml" `
+            /d:sonar.cs.vscoveragexml.reportsPaths="coverage-integration.xml" `
+            /d:sonar.exclusions="**/bin/**,**/obj/**" `
+            /d:sonar.coverage.exclusions="**/Program.cs,**/gate.ps1" `
+            /d:sonar.qualitygate.wait=true `
+            /d:sonar.scanner.skipJreProvisioning=true
+
+      - name: Build with dotnet
+        env:
+          NuGetPackageSourceCredentials_GitHub: Username=${{ github.actor }};Password=${{ secrets.PACKAGES_READ_TOKEN }}
+        run: dotnet build --no-incremental --configuration Release /p:RestoreLockedMode=true -warnaserror
+
+      - name: Restore local tools
+        run: dotnet tool restore
+
+      - name: ReSharper inspection (jb inspectcode)
+        run: |
+          dotnet jb inspectcode Sentinel.slnx --no-build -e=WARNING --output=inspectcode.sarif
+          $results = @((Get-Content inspectcode.sarif -Raw | ConvertFrom-Json).runs | ForEach-Object { $_.results })
+          foreach ($result in $results) {
+            $location = $result.locations[0].physicalLocation
+            Write-Output "::error file=$($location.artifactLocation.uri),line=$($location.region.startLine)::$($result.ruleId) $($result.message.text)"
+          }
+          if ($results.Count -gt 0) { exit 1 }
+
+      - name: Run unit tests with coverage
+        run: |
+          dotnet coverlet Sentinel.Tests.Unit/bin/Release/net10.0 `
+            --target "dotnet" `
+            --targetargs "test --project Sentinel.Tests.Unit --no-build --configuration Release -- --filter-trait Category=Unit --stop-on-fail on --report-xunit-trx --report-xunit-trx-filename unit-tests.trx --results-directory=Sentinel.Tests.Unit/bin/Release/net10.0/TestResults" `
+            --format opencover --output "coverage.opencover.xml" `
+            --skipautoprops `
+            --exclude-by-attribute GeneratedCodeAttribute `
+            --exclude-by-file "**/obj/**" `
+            --exclude-by-file "**/Program.cs" `
+            --does-not-return-attribute DoesNotReturnAttribute `
+            --include "[Sentinel]*"
+
+      - name: Run integration tests with coverage
+        if: github.event_name != 'pull_request'
+        id: integration
+        env:
+          ASPNETCORE_ENVIRONMENT: CI
+          RedisHost: ${{ vars.REDIS_HOST }}
+          RedisPort: ${{ vars.REDIS_PORT }}
+          RedisSsl: true
+          RedisPassword: ${{ secrets.REDIS_PASSWORD }}
+          RedisDatabase: ${{ vars.REDIS_DATABASE_TEST }}
+        run: |
+          dotnet-coverage collect `
+            "dotnet test --project Sentinel.Tests.Integration --no-build --configuration Release -- --filter-trait Category=Integration --stop-on-fail on --report-xunit-trx --report-xunit-trx-filename integration-tests.trx --results-directory=Sentinel.Tests.Integration/bin/Release/net10.0/TestResults" `
+            -f xml -o "coverage-integration.xml" -s "coverage.settings.xml"
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: test-results
+          if-no-files-found: error
+          path: |
+            Sentinel.Tests.Unit/bin/Release/net10.0/TestResults/
+            Sentinel.Tests.Integration/bin/Release/net10.0/TestResults/
+
+      - name: dotnet publish
+        env:
+          NuGetPackageSourceCredentials_GitHub: Username=${{ github.actor }};Password=${{ secrets.PACKAGES_READ_TOKEN }}
+        run: >
+          dotnet publish Sentinel/Sentinel.csproj
+          -c Release
+          -r win-x86
+          --self-contained false
+          -o ${{ github.workspace }}/publish
+
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v7
+        with:
+          name: .net-app
+          path: ${{ github.workspace }}/publish
+
+      - name: End Sonar analysis
+        if: github.actor != 'dependabot[bot]'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          ${{ runner.temp }}/scanner/dotnet-sonarscanner end /d:sonar.token="$env:SONAR_TOKEN"
+
+      - name: Fail on open Sonar issues
+        if: github.actor != 'dependabot[bot]'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
+          BRANCH: ${{ github.ref_name }}
+        shell: pwsh
+        run: |
+          $scope = if ($env:PULL_REQUEST) { "pullRequest=$env:PULL_REQUEST" } else { "branch=$env:BRANCH" }
+          $auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$($env:SONAR_TOKEN):"))
+          $report = Invoke-RestMethod -Headers @{ Authorization = "Basic $auth" } -Uri "https://sonarcloud.io/api/issues/search?componentKeys=$env:SONAR_PROJECT_KEY&$scope&issueStatuses=OPEN,CONFIRMED&ps=500"
+          foreach ($issue in $report.issues) {
+            Write-Output "::error file=$($issue.component -replace '^[^:]*:'),line=$($issue.line)::$($issue.rule) $($issue.message)"
+          }
+          Write-Output "$($report.total) open Sonar issue(s) on $scope"
+          if ($null -eq $report.total -or $report.total -ne 0) { exit 1 }
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name != 'pull_request'
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v7
+        with:
+          name: .net-app
+
+      - name: Login to Azure
+        uses: azure/login@f5d393ae46f8fde4be8b75f32e3fc50e654ad0ca  # v3.0.1
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID }}
+
+      - name: Deploy to Azure Web App
+        id: deploy-to-webapp
+        uses: azure/webapps-deploy@02a81bead70021f5284939794bcec79c271ab383  # v3.0.8
+        with:
+          app-name: 'crgolden-sentinel'
+          slot-name: 'Production'
+          package: .
+
