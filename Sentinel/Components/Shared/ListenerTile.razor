@@ -1,0 +1,46 @@
+@if (Snapshot is { } snapshot)
+{
+<div class="col">
+    <div class="card h-100 border-2 @DisplayMapper.BorderClass(snapshot)" id="@DisplayMapper.ElementId("listener-tile", snapshot.Id)">
+        <div class="card-header d-flex align-items-center justify-content-between">
+            <span class="fw-semibold text-truncate">@snapshot.Definition.DisplayName</span>
+            <StatusBadge State="snapshot.State" Id="@DisplayMapper.ElementId("listener-state", snapshot.Id)" />
+        </div>
+        <div class="card-body">
+            @if (snapshot.Definition.Kind == ListenerKind.Master)
+            {
+                <p class="mb-2"><span class="badge bg-primary" id="@DisplayMapper.ElementId("listener-master", snapshot.Id)">Master session</span></p>
+            }
+            @if (snapshot.Card is { } card)
+            {
+                <p class="small mb-2">@card.Description</p>
+                <p class="small text-muted mb-0">@Join(", ", card.Skills.Select(skill => skill.Name))</p>
+            }
+            else if (snapshot.State != ListenerState.Unknown)
+            {
+                <p class="small text-muted mb-0" id="@DisplayMapper.ElementId("listener-problem", snapshot.Id)">@DisplayMapper.Label(snapshot.Problem)</p>
+            }
+            @if (Status is { } status)
+            {
+                <p class="mt-2 mb-0">
+                    <span class="badge @DisplayMapper.BadgeClass(status.Health)" id="@DisplayMapper.ElementId("listener-health", snapshot.Id)">@status.Health</span>
+                    <span class="small ms-1">@status.Summary</span>
+                </p>
+            }
+        </div>
+        <div class="card-footer d-flex align-items-center justify-content-between small">
+            <span class="text-muted">Checked @DisplayMapper.Timestamp(snapshot.LastCheckedAt)</span>
+            <a href="@PageRoutes.Listener(snapshot.Id)" class="btn btn-sm btn-outline-primary" id="@DisplayMapper.ElementId("listener-open", snapshot.Id)">Open</a>
+        </div>
+    </div>
+</div>
+}
+
+@code {
+    [Parameter]
+    [EditorRequired]
+    public ListenerSnapshot? Snapshot { get; set; }
+
+    [Parameter]
+    public ListenerStatusFeed? Status { get; set; }
+}

@@ -1,0 +1,76 @@
+@page "/board"
+@inherits OperatorComponentBase
+@inject IListenerDirectory Directory
+@inject IFeedReader Feeds
+
+<PageTitle>Coordination board</PageTitle>
+
+<h1 class="h3 mb-3">Coordination board</h1>
+@if (Board is not { } board)
+{
+    <p class="text-muted" id="board-none">The master bridge has not published the coordination board.</p>
+}
+else
+{
+    <p class="small text-muted" id="board-generated">Relayed @DisplayMapper.Timestamp(board.GeneratedAt)</p>
+    <h2 class="h5 mt-4">Sessions</h2>
+    <table class="table table-sm table-striped" id="board-sessions">
+        <thead><tr><th>Session</th><th>Machine</th><th>Goal</th><th>Last seen</th></tr></thead>
+        <tbody>
+            @foreach (var row in board.Sessions)
+            {
+                <tr><td class="font-monospace">@row.SessionId</td><td>@row.Machine</td><td>@row.Goal</td><td>@DisplayMapper.Timestamp(row.LastSeen)</td></tr>
+            }
+        </tbody>
+    </table>
+    <h2 class="h5 mt-4">Inventory</h2>
+    <table class="table table-sm table-striped" id="board-inventory">
+        <thead><tr><th>Machine</th><th>Session</th><th>State</th><th>Goal</th><th>At</th></tr></thead>
+        <tbody>
+            @foreach (var row in board.Inventory)
+            {
+                <tr><td>@row.Machine</td><td class="font-monospace">@row.SessionId</td><td>@row.State</td><td>@row.Goal</td><td>@DisplayMapper.Timestamp(row.At)</td></tr>
+            }
+        </tbody>
+    </table>
+    <h2 class="h5 mt-4">Claims</h2>
+    <table class="table table-sm table-striped" id="board-claims">
+        <thead><tr><th>Session</th><th>Repo</th><th>Files</th><th>Claimed</th><th>Released</th></tr></thead>
+        <tbody>
+            @foreach (var row in board.Claims)
+            {
+                <tr><td class="font-monospace">@row.SessionId</td><td>@row.Repo</td><td>@Join(", ", row.Files)</td><td>@DisplayMapper.Timestamp(row.ClaimedAt)</td><td>@DisplayMapper.Timestamp(row.ReleasedAt)</td></tr>
+            }
+        </tbody>
+    </table>
+    <h2 class="h5 mt-4">Gates</h2>
+    <table class="table table-sm table-striped" id="board-gates">
+        <thead><tr><th>Session</th><th>Machine</th><th>Repo</th><th>State</th><th>Verdict</th><th>At</th></tr></thead>
+        <tbody>
+            @foreach (var row in board.Gates)
+            {
+                <tr><td class="font-monospace">@row.SessionId</td><td>@row.Machine</td><td>@row.Repo</td><td>@row.State</td><td>@row.Verdict</td><td>@DisplayMapper.Timestamp(row.At)</td></tr>
+            }
+        </tbody>
+    </table>
+    <h2 class="h5 mt-4">Handoffs</h2>
+    <table class="table table-sm table-striped" id="board-handoffs">
+        <thead><tr><th>Id</th><th>From</th><th>To</th><th>Kind</th><th>Status</th><th>Summary</th><th>At</th></tr></thead>
+        <tbody>
+            @foreach (var row in board.Handoffs)
+            {
+                <tr><td class="font-monospace">@row.Id</td><td>@row.From</td><td>@row.To</td><td>@row.Kind</td><td>@row.Status</td><td>@row.Summary</td><td>@DisplayMapper.Timestamp(row.At)</td></tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private BoardSnapshot? Board { get; set; }
+
+    protected override async Task OnOperatorReadyAsync()
+    {
+        var master = Directory.Listeners.FirstOrDefault(listener => listener.Definition.Kind == ListenerKind.Master);
+        Board = master is null ? null : await Feeds.GetBoardAsync(master.Id);
+    }
+}

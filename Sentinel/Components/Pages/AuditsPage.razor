@@ -1,0 +1,57 @@
+@page "/audits"
+@inherits OperatorComponentBase
+@inject IListenerDirectory Directory
+@inject IFeedReader Feeds
+
+<PageTitle>Audits</PageTitle>
+
+<h1 class="h3 mb-3">Audits</h1>
+<h2 class="h5">Audit runs</h2>
+@if (Runs.Count == 0)
+{
+    <p class="text-muted" id="audits-none">No audit runs have been relayed.</p>
+}
+else
+{
+    <table class="table table-sm table-striped" id="audit-runs">
+        <thead><tr><th>Skill</th><th>Run</th><th>Summary</th><th>Report</th></tr></thead>
+        <tbody>
+            @foreach (var row in Runs)
+            {
+                <tr>
+                    <td>@row.Skill</td>
+                    <td>@DisplayMapper.Timestamp(row.Run)</td>
+                    <td>@row.Summary</td>
+                    <td>
+                        @if (row.Report is { } report)
+                        {
+                            <a href="@report" target="_blank" rel="noopener noreferrer">Open</a>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+<h2 class="h5 mt-4">Audit reports</h2>
+<ArtifactList Items="Reports" Id="audit-reports" />
+
+@code {
+    private IReadOnlyList<AuditRow> Runs { get; set; } = [];
+
+    private IReadOnlyList<ArtifactItem> Reports { get; set; } = [];
+
+    protected override async Task OnOperatorReadyAsync()
+    {
+        var master = Directory.Listeners.FirstOrDefault(listener => listener.Definition.Kind == ListenerKind.Master);
+        var board = master is null ? null : await Feeds.GetBoardAsync(master.Id);
+        Runs = [.. (board?.Audits ?? []).OrderByDescending(row => row.Run)];
+        List<ArtifactItem> reports = [];
+        foreach (var listener in Directory.Listeners)
+        {
+            reports.AddRange((await Feeds.GetArtifactsAsync(listener.Id))?.Items.Where(item => item.Kind == ArtifactKind.AuditReport) ?? []);
+        }
+
+        Reports = [.. reports.OrderByDescending(item => item.ProducedAt)];
+    }
+}

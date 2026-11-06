@@ -1,0 +1,13 @@
+<Router AppAssembly="typeof(Program).Assembly">
+    <Found Context="routeData">
+        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(MainLayout)">
+            <NotAuthorized>
+                <div class="container py-5" id="not-authorized">
+                    <h1 class="h4">Operator access required</h1>
+                    <p class="text-muted">Your account is signed in but does not hold the Sentinel operator role.</p>
+                </div>
+            </NotAuthorized>
+        </AuthorizeRouteView>
+        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+    </Found>
+</Router>

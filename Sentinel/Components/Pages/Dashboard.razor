@@ -1,0 +1,59 @@
+@page "/"
+@inherits OperatorComponentBase
+@implements IDisposable
+@inject IListenerDirectory Directory
+@inject IFeedReader Feeds
+@inject IApprovalService Approvals
+
+<PageTitle>Sentinel</PageTitle>
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0">Listeners</h1>
+    <a href="@PageRoutes.Approvals" class="btn btn-sm @(PendingApprovals > 0 ? "btn-warning" : "btn-outline-secondary")" id="dashboard-approvals">
+        Pending approvals <span class="badge bg-dark" id="dashboard-approval-count">@PendingApprovals</span>
+    </a>
+</div>
+
+@if (Directory.Listeners.Count == 0)
+{
+    <p class="text-muted" id="dashboard-empty">No listeners are configured.</p>
+}
+else
+{
+    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4" id="listener-grid">
+        @foreach (var listener in Directory.Listeners)
+        {
+            <ListenerTile @key="listener.Id" Snapshot="listener" Status="Statuses.GetValueOrDefault(listener.Id)" />
+        }
+    </div>
+}
+
+@code {
+    private Dictionary<string, ListenerStatusFeed> Statuses { get; } = new(StringComparer.Ordinal);
+
+    private int PendingApprovals { get; set; }
+
+    public void Dispose() => Directory.Changed -= OnDirectoryChanged;
+
+    protected override async Task OnOperatorReadyAsync()
+    {
+        Directory.Changed -= OnDirectoryChanged;
+        Directory.Changed += OnDirectoryChanged;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        foreach (var listenerId in Directory.Listeners.Select(listener => listener.Id))
+        {
+            if (await Feeds.GetStatusAsync(listenerId) is { } status)
+            {
+                Statuses[listenerId] = status;
+            }
+        }
+
+        PendingApprovals = (await Approvals.GetPendingAsync(OperatorId)).Count;
+    }
+
+    private void OnDirectoryChanged() => _ = InvokeAsync(StateHasChanged);
+}

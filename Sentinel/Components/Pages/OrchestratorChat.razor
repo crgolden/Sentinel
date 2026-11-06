@@ -1,0 +1,18 @@
+@page "/chat"
+@inherits OperatorComponentBase
+
+<PageTitle>Sentinel chat</PageTitle>
+
+<h1 class="h3 mb-3">Sentinel chat</h1>
+<p class="text-muted">Ask Sentinel, and it decides which listeners to involve. Anything it relays to the master session waits for your approval.</p>
+<ChatPanel Conversation="Conversation" Title="Sentinel" />
+
+@code {
+    private ConversationKey? Conversation { get; set; }
+
+    protected override Task OnOperatorReadyAsync()
+    {
+        Conversation = ConversationKey.Orchestrator(OperatorId);
+        return Task.CompletedTask;
+    }
+}

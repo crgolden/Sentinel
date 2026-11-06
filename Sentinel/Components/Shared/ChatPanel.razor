@@ -1,0 +1,48 @@
+<div class="card" id="chat-panel">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <span class="fw-semibold">@Title</span>
+        @if (Run is { } run)
+        {
+            <span class="badge @DisplayMapper.BadgeClass(run.State)" id="chat-run-state">@DisplayMapper.Label(run.State)</span>
+        }
+    </div>
+    <ul class="list-group list-group-flush" id="chat-transcript">
+        @if (Entries.Count == 0 && Streaming.Length == 0)
+        {
+            <li class="list-group-item text-muted small" id="chat-empty">No messages yet.</li>
+        }
+        @foreach (var entry in Entries)
+        {
+            <li class="list-group-item @DisplayMapper.EntryClass(entry)" id="@DisplayMapper.ElementId("transcript-entry", entry.Id)">
+                <div class="d-flex justify-content-between small text-muted">
+                    <span>@DisplayMapper.Label(entry.Role)</span>
+                    <span>@DisplayMapper.Timestamp(entry.At)</span>
+                </div>
+                <pre class="mb-0 text-break">@entry.Text</pre>
+                @if (entry.Kind == TranscriptEntryKind.ApprovalRequested)
+                {
+                    <a href="@PageRoutes.Approvals" class="small" id="@DisplayMapper.ElementId("transcript-approval", entry.Id)">Review on the approvals page</a>
+                }
+            </li>
+        }
+        @if (Streaming.Length > 0)
+        {
+            <li class="list-group-item" id="chat-streaming">
+                <div class="small text-muted">@DisplayMapper.Label(TranscriptRole.Agent)</div>
+                <pre class="mb-0 text-break">@Streaming</pre>
+            </li>
+        }
+    </ul>
+    <div class="card-footer">
+        <form @onsubmit="SendAsync" id="chat-form">
+            <div class="input-group">
+                <textarea class="form-control" rows="2" id="chat-input" @bind="Draft" @bind:event="oninput" disabled="@(!CanSend)"></textarea>
+                <button type="submit" class="btn btn-primary" id="chat-send" disabled="@(!CanSend || IsNullOrWhiteSpace(Draft))">Send</button>
+                @if (IsRunning)
+                {
+                    <button type="button" class="btn btn-outline-danger" id="chat-cancel" @onclick="Cancel">Cancel</button>
+                }
+            </div>
+        </form>
+    </div>
+</div>
