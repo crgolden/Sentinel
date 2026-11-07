@@ -47,15 +47,15 @@ public sealed class OrchestratorRunner(
         }
         catch (Exception) when (cancellationToken.IsCancellationRequested)
         {
-            await journal.SaveRunAsync(key, run with { State = RunState.Canceled });
             await journal.AppendAsync(key, TranscriptRole.System, TranscriptEntryKind.Status, journal.Text.RunCanceled);
+            await journal.SaveRunAsync(key, run with { State = RunState.Canceled });
             return;
         }
         catch (Exception ex)
         {
             telemetry.DispatchFailed(key.TargetId, ex);
-            await journal.SaveRunAsync(key, run with { State = RunState.Failed });
             await journal.AppendAsync(key, TranscriptRole.System, TranscriptEntryKind.Error, journal.Text.RunFailed);
+            await journal.SaveRunAsync(key, run with { State = RunState.Failed });
             return;
         }
 

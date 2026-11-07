@@ -27,6 +27,9 @@ state change is written to Redis and then published through `Dispatch/Conversati
 - **Approval requests are read from the raw A2A event** (`ListenerUpdateClassifier.Classify` on
   `AgentResponseUpdate.RawRepresentation`). The Agent Framework does not surface `input-required` through
   `FinishReason` or continuation tokens.
+- **A run's final state is written last.** Every transcript entry and audit entry a turn produces is stored before
+  its terminal `RunState` is saved, because saving the state publishes the event the UI and the integration tests wait
+  on; a reader woken by it must find everything the turn recorded.
 - **Cancellation is recognized by the token, not the exception type.** A canceled A2A stream surfaces as whatever the
   HTTP stack throws; both runners treat any exception thrown after their token is canceled as a cancel.
 - **The orchestrator never uses `AIAgent.AsAIFunction` for listeners.** It loses the session and the task state, so a
