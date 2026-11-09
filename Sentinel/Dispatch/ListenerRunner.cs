@@ -70,8 +70,8 @@ public sealed class ListenerRunner(
                 options.ContinuationToken = ResponseContinuationToken.FromBytes(token);
                 break;
             default:
-                await journal.SaveRunAsync(key, run with { State = RunState.Interrupted });
                 await journal.AppendAsync(key, TranscriptRole.System, TranscriptEntryKind.Status, journal.Text.RunInterrupted);
+                await journal.SaveRunAsync(key, run with { State = RunState.Interrupted });
                 return new ListenerTurnResult(RunState.Interrupted, null, null);
         }
 
@@ -142,8 +142,8 @@ public sealed class ListenerRunner(
         catch (Exception ex)
         {
             telemetry.DispatchFailed(key.TargetId, ex);
-            await journal.SaveRunAsync(key, run with { State = RunState.Failed });
             await journal.AppendAsync(key, TranscriptRole.System, TranscriptEntryKind.Error, journal.Text.RunFailed);
+            await journal.SaveRunAsync(key, run with { State = RunState.Failed });
             return new ListenerTurnResult(RunState.Failed, null, null);
         }
 
@@ -177,9 +177,9 @@ public sealed class ListenerRunner(
         await remoteCancel;
         await CancelRemoteTaskAsync(agent, run);
         await store.SaveSessionAsync(key, await agent.SerializeSessionAsync(session, SentinelJson.Options, CancellationToken.None));
-        await journal.SaveRunAsync(key, run with { State = RunState.Canceled });
         await journal.AppendAsync(key, TranscriptRole.System, TranscriptEntryKind.Status, journal.Text.RunCanceled);
         await ledger.RecordAsync(key, AuditAction.RunCanceled);
+        await journal.SaveRunAsync(key, run with { State = RunState.Canceled });
         return new ListenerTurnResult(RunState.Canceled, null, null);
     }
 

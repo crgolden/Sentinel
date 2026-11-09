@@ -44,8 +44,8 @@ public sealed class DispatchWorker(
             }
             else if (await store.GetRunAsync(key) is { } run)
             {
-                await journal.SaveRunAsync(key, run with { State = RunState.Interrupted });
                 await journal.AppendAsync(key, TranscriptRole.System, TranscriptEntryKind.Status, journal.Text.RunInterrupted);
+                await journal.SaveRunAsync(key, run with { State = RunState.Interrupted });
             }
         }
     }
