@@ -1,6 +1,7 @@
 param([string]$Goal, [string]$Probe)
 
 $ErrorActionPreference = 'Continue'
+$InformationPreference = 'Continue'
 $gateCommon = $env:GATE_LIBRARY
 if (-not $gateCommon -or -not (Test-Path -LiteralPath $gateCommon -PathType Leaf)) {
     Write-Host 'GATE: FAILED (GATE_LIBRARY names no gate library script; README.md, section Gate, says how to plug one in or run the steps without one)'
@@ -56,16 +57,16 @@ else {
     $env:JAVA_HOME = Get-SonarScannerJavaHome $beginSonar
     $global:LASTEXITCODE = $null
     dotnet-sonarscanner begin /k:"crgolden_Sentinel" /o:"crgolden" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="coverage.opencover.xml" /d:sonar.cs.vscoveragexml.reportsPaths="coverage-integration.xml" /d:sonar.exclusions="**/bin/**,**/obj/**" /d:sonar.coverage.exclusions="**/Program.cs,**/gate.ps1" /d:sonar.qualitygate.wait=true /d:sonar.scanner.skipJreProvisioning=true /d:sonar.branch.name="$sonarBranch"
-    $null = Test-Exit $beginSonar
+    Assert-StepExit$beginSonar
 
     $global:LASTEXITCODE = $null
     dotnet build --no-incremental --configuration Release /p:RestoreLockedMode=true -warnaserror
-    $null = Test-Exit $build
+    Assert-StepExit$build
 }
 
 $global:LASTEXITCODE = $null
 dotnet tool restore
-$null = Test-Exit 'Restore local tools (dotnet tool restore)'
+Assert-StepExit'Restore local tools (dotnet tool restore)'
 
 if (-not (Test-StepCarried 'jb inspectcode')) {
     if (Test-Path $sarif) { Remove-Item $sarif -Force }
@@ -161,7 +162,7 @@ else {
 if (-not $sonarCarried) {
     $global:LASTEXITCODE = $null
     dotnet-sonarscanner end
-    $null = Test-Exit $endSonar
+    Assert-StepExit$endSonar
     Test-SonarIssues $sonarIssues 'crgolden_Sentinel' $sonarBranch $sonarStartedAt
 }
 
