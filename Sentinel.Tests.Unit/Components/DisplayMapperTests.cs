@@ -66,10 +66,10 @@ public sealed class DisplayMapperTests
     }
 
     [Theory]
-    [InlineData(ListenerState.Online, "border-success")]
-    [InlineData(ListenerState.Offline, "border-danger")]
-    [InlineData(ListenerState.Misconfigured, "border-warning")]
-    [InlineData(ListenerState.Unknown, "border-secondary")]
+    [InlineData(ListenerState.Online, DisplayMapper.BorderSuccess)]
+    [InlineData(ListenerState.Offline, DisplayMapper.BorderDanger)]
+    [InlineData(ListenerState.Misconfigured, DisplayMapper.BorderWarning)]
+    [InlineData(ListenerState.Unknown, DisplayMapper.BorderNeutral)]
     public void BorderClass_ToolListener_FollowsTheState(ListenerState state, string border)
     {
         // Arrange
@@ -92,16 +92,16 @@ public sealed class DisplayMapperTests
         var actual = DisplayMapper.BorderClass(snapshot);
 
         // Assert
-        Assert.Equal("border-primary", actual);
+        Assert.Equal(DisplayMapper.BorderPrimary, actual);
     }
 
     [Theory]
-    [InlineData(TranscriptRole.Agent, TranscriptEntryKind.Error, "list-group-item-danger")]
-    [InlineData(TranscriptRole.Agent, TranscriptEntryKind.ApprovalRequested, "list-group-item-warning")]
-    [InlineData(TranscriptRole.Operator, TranscriptEntryKind.ApprovalDecided, "list-group-item-info")]
-    [InlineData(TranscriptRole.System, TranscriptEntryKind.Status, "list-group-item-light")]
-    [InlineData(TranscriptRole.Operator, TranscriptEntryKind.Message, "list-group-item-primary")]
-    [InlineData(TranscriptRole.Agent, TranscriptEntryKind.Message, "list-group-item")]
+    [InlineData(TranscriptRole.Agent, TranscriptEntryKind.Error, DisplayMapper.EntryDanger)]
+    [InlineData(TranscriptRole.Agent, TranscriptEntryKind.ApprovalRequested, DisplayMapper.EntryWarning)]
+    [InlineData(TranscriptRole.Operator, TranscriptEntryKind.ApprovalDecided, DisplayMapper.EntryInfo)]
+    [InlineData(TranscriptRole.System, TranscriptEntryKind.Status, DisplayMapper.EntryLight)]
+    [InlineData(TranscriptRole.Operator, TranscriptEntryKind.Message, DisplayMapper.EntryPrimary)]
+    [InlineData(TranscriptRole.Agent, TranscriptEntryKind.Message, DisplayMapper.EntryDefault)]
     public void EntryClass_FollowsKindThenRole(TranscriptRole role, TranscriptEntryKind kind, string expected)
     {
         // Act
@@ -151,7 +151,7 @@ public sealed class DisplayMapperTests
         var actual = DisplayMapper.Timestamp(at);
 
         // Assert
-        Assert.Equal(at.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss 'UTC'", System.Globalization.CultureInfo.InvariantCulture), actual);
+        Assert.Equal(at.ToUniversalTime().ToString(DisplayMapper.TimestampFormat, System.Globalization.CultureInfo.InvariantCulture), actual);
     }
 
     [Fact]
@@ -161,7 +161,7 @@ public sealed class DisplayMapperTests
         var actual = DisplayMapper.Timestamp(null);
 
         // Assert
-        Assert.Equal("Never", actual);
+        Assert.Equal(DisplayMapper.NeverTimestamp, actual);
     }
 
     [Fact]
@@ -169,12 +169,12 @@ public sealed class DisplayMapperTests
     {
         // Arrange
         var prefix = Generated.LowercaseToken(6);
-        var id = Guid.NewGuid();
+        var entityId = Guid.NewGuid();
 
         // Act
-        var actual = (DisplayMapper.ElementId(prefix, id), DisplayMapper.ElementId(prefix, prefix));
+        var actual = (DisplayMapper.ElementId(prefix, entityId), DisplayMapper.ElementId(prefix, prefix));
 
         // Assert
-        Assert.Equal(($"{prefix}-{id:N}", $"{prefix}-{prefix}"), actual);
+        Assert.Equal(($"{prefix}-{entityId:N}", $"{prefix}-{prefix}"), actual);
     }
 }

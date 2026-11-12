@@ -20,7 +20,7 @@ public sealed class FeedClientTests
     public void FeedUri_BaseWithTrailingSlash_AppendsTheFeedPath(FeedKind kind, string path)
     {
         // Arrange
-        var baseAddress = new Uri($"https://{Generated.NewHostname()}/{Generated.LowercaseToken(5)}/");
+        var baseAddress = new UriBuilder(Uri.UriSchemeHttps, Generated.NewHostname()) { Path = $"/{Generated.LowercaseToken(5)}/" }.Uri;
 
         // Act
         var uri = FeedClient.FeedUri(baseAddress, kind);
@@ -34,7 +34,7 @@ public sealed class FeedClientTests
     {
         // Arrange
         var prefix = Generated.LowercaseToken(5);
-        var baseAddress = new Uri($"https://{Generated.NewHostname()}/{prefix}");
+        var baseAddress = new UriBuilder(Uri.UriSchemeHttps, Generated.NewHostname()) { Path = $"/{prefix}" }.Uri;
 
         // Act
         var uri = FeedClient.FeedUri(baseAddress, FeedKind.Status);

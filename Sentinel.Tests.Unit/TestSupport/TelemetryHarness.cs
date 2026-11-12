@@ -22,7 +22,11 @@ internal sealed class TelemetryHarness : IDisposable
 
     internal Telemetry Telemetry { get; }
 
-    public void Dispose() => _services.Dispose();
+    public void Dispose()
+    {
+        Telemetry.Dispose();
+        _services.Dispose();
+    }
 
     internal CounterCapture Capture(string instrumentName) => new(MeterFactory, instrumentName);
 

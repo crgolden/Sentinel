@@ -2,6 +2,7 @@ namespace Sentinel.Tests.Integration.TestSupport;
 
 using System.Net;
 using System.Net.Http.Json;
+using Duende.IdentityModel;
 
 public sealed class TokenEndpointHandler(string accessToken) : HttpMessageHandler
 {
@@ -12,14 +13,14 @@ public sealed class TokenEndpointHandler(string accessToken) : HttpMessageHandle
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         Requests++;
+        var lifetimeSeconds = Generated.NewExpiresInSeconds();
         return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
         {
-            Content = JsonContent.Create(new Dictionary<string, object>
+            Content = JsonContent.Create(new Dictionary<string, object>(StringComparer.Ordinal)
             {
-                ["access_token"] = accessToken,
-                ["token_type"] = "Bearer",
-                ["expires_in"] = 3600,
-                ["scope"] = "listeners",
+                [OidcConstants.TokenResponse.AccessToken] = accessToken,
+                [OidcConstants.TokenResponse.TokenType] = OidcConstants.TokenResponse.BearerTokenType,
+                [OidcConstants.TokenResponse.ExpiresIn] = lifetimeSeconds,
             }),
         });
     }

@@ -30,7 +30,7 @@ public sealed class ListenerToolsetTests
 
         // Assert
         Assert.Equal([ListenerToolset.ListListenersName, ListenerToolset.AskListenerName, ListenerToolset.RelayToMasterName], tools.Select(tool => tool.Name));
-        Assert.IsType<ApprovalRequiredAIFunction>(tools[2]);
+        Assert.IsType<ApprovalRequiredAIFunction>(Assert.Single(tools, tool => string.Equals(tool.Name, ListenerToolset.RelayToMasterName, StringComparison.Ordinal)));
     }
 
     [Fact]
@@ -50,13 +50,28 @@ public sealed class ListenerToolsetTests
     public void Create_NeverExposesAnApprovalDecision()
     {
         // Arrange
+        IReadOnlyList<string> nonDecisionToolNames = [ListenerToolset.ListListenersName, ListenerToolset.AskListenerName, ListenerToolset.RelayToMasterName];
         _directory.Setup(directory => directory.Listeners).Returns([ListenerFixtures.Online(ListenerFixtures.Definition(ListenerKind.Master))]);
 
         // Act
         var tools = _toolset.Create();
 
         // Assert
-        Assert.DoesNotContain(tools, tool => tool.Name.Contains("approv", StringComparison.OrdinalIgnoreCase));
+        Assert.All(tools, tool => Assert.Contains(tool.Name, nonDecisionToolNames));
+    }
+
+    [Fact]
+    public void Create_ArgumentConstants_MatchTheFunctionSchemaParameterNames()
+    {
+        // Arrange
+        _directory.Setup(directory => directory.Listeners).Returns([ListenerFixtures.Online(ListenerFixtures.Definition(ListenerKind.Master))]);
+
+        // Act
+        var tools = _toolset.Create();
+
+        // Assert
+        Assert.Equal([ListenerToolset.ListenerIdArgument, ListenerToolset.MessageArgument], ParameterNames(tools, ListenerToolset.AskListenerName));
+        Assert.Equal([ListenerToolset.MessageArgument], ParameterNames(tools, ListenerToolset.RelayToMasterName));
     }
 
     [Fact]
@@ -151,4 +166,11 @@ public sealed class ListenerToolsetTests
         // Assert
         Assert.Equal(new ListenerToolResult(master.Id, RunState.AwaitingApproval, null, approval.Id), result);
     }
+
+    private static IEnumerable<string> ParameterNames(IList<AITool> tools, string toolName) =>
+        tools.OfType<AIFunction>()
+            .Single(function => string.Equals(function.Name, toolName, StringComparison.Ordinal))
+            .JsonSchema.GetProperty(JsonSchemaConstants.Properties)
+            .EnumerateObject()
+            .Select(property => property.Name);
 }

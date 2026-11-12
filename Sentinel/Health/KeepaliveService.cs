@@ -5,7 +5,7 @@ using OpenTelemetry;
 
 public sealed class KeepaliveService(HttpClient httpClient, KeepaliveOptions options, TimeProvider timeProvider) : BackgroundService
 {
-    public static Uri PingUri(string hostname) => new($"https://{hostname}/ping", UriKind.Absolute);
+    public static Uri PingUri(string hostname) => new($"https://{hostname}{EndpointRoutes.Ping}", UriKind.Absolute);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

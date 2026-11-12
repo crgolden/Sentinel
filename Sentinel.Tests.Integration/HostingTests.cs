@@ -1,6 +1,8 @@
 namespace Sentinel.Tests.Integration;
 
 using System.Net;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Sentinel.Components.Shared;
 using Sentinel.Tests.Integration.TestSupport;
 
 [Collection(IntegrationConstants.CollectionName)]
@@ -12,10 +14,10 @@ public sealed class HostingTests(SentinelWebApplicationFactory factory)
     {
         using var client = factory.CreateClient();
 
-        var response = await client.GetAsync("/health", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync(EndpointRoutes.Health, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("Healthy", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(nameof(HealthStatus.Healthy), await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -23,7 +25,7 @@ public sealed class HostingTests(SentinelWebApplicationFactory factory)
     {
         using var client = factory.CreateClient();
 
-        var response = await client.GetAsync("/ping", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync(EndpointRoutes.Ping, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -60,7 +62,7 @@ public sealed class HostingTests(SentinelWebApplicationFactory factory)
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-        Assert.Contains($"id=\"listener-tile-{factory.ToolListenerId}\"", body, StringComparison.Ordinal);
-        Assert.Contains($"id=\"listener-tile-{factory.MasterListenerId}\"", body, StringComparison.Ordinal);
+        Assert.Contains(DisplayMapper.ElementId(ElementIds.ListenerTile, factory.ToolListenerId), body, StringComparison.Ordinal);
+        Assert.Contains(DisplayMapper.ElementId(ElementIds.ListenerTile, factory.MasterListenerId), body, StringComparison.Ordinal);
     }
 }

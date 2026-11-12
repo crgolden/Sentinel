@@ -10,8 +10,11 @@ public sealed class ScriptedChatClient : IChatClient
 
     public void Reply(string text) => _script.Enqueue(new ChatResponseUpdate(ChatRole.Assistant, text));
 
-    public void CallTool(string name, IDictionary<string, object?> arguments) =>
-        _script.Enqueue(new ChatResponseUpdate(ChatRole.Assistant, [new FunctionCallContent(Guid.NewGuid().ToString("N"), name, arguments)]));
+    public void CallTool(string name, IDictionary<string, object?> arguments)
+    {
+        var callId = Guid.NewGuid().ToString("N");
+        _script.Enqueue(new ChatResponseUpdate(ChatRole.Assistant, [new FunctionCallContent(callId, name, arguments)]));
+    }
 
     public async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
     {

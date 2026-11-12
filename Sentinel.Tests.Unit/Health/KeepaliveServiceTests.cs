@@ -17,7 +17,7 @@ public sealed class KeepaliveServiceTests
         var uri = KeepaliveService.PingUri(hostname);
 
         // Assert
-        Assert.Equal(new Uri($"https://{hostname}/ping"), uri);
+        Assert.Equal(new UriBuilder(Uri.UriSchemeHttps, hostname) { Path = EndpointRoutes.Ping }.Uri, uri);
     }
 
     [Fact]

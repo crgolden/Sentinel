@@ -26,7 +26,7 @@ public sealed class OrchestratorTests(SentinelWebApplicationFactory factory)
         var conversation = ConversationKey.Orchestrator(operatorId);
         var question = Generated.NewMessageText();
         var answer = Generated.NewMessageText();
-        factory.ChatClient.CallTool(ListenerToolset.AskListenerName, new Dictionary<string, object?> { ["listenerId"] = factory.ToolListenerId, ["message"] = question });
+        factory.ChatClient.CallTool(ListenerToolset.AskListenerName, new Dictionary<string, object?> { [ListenerToolset.ListenerIdArgument] = factory.ToolListenerId, [ListenerToolset.MessageArgument] = question });
         factory.ChatClient.Reply(answer);
         using var waiter = factory.Wait(conversation);
 
@@ -46,7 +46,7 @@ public sealed class OrchestratorTests(SentinelWebApplicationFactory factory)
         var conversation = ConversationKey.Orchestrator(operatorId);
         var relayed = Generated.NewMessageText();
         var answer = Generated.NewMessageText();
-        factory.ChatClient.CallTool(ListenerToolset.RelayToMasterName, new Dictionary<string, object?> { ["message"] = relayed });
+        factory.ChatClient.CallTool(ListenerToolset.RelayToMasterName, new Dictionary<string, object?> { [ListenerToolset.MessageArgument] = relayed });
         using (var requestWaiter = factory.Wait(conversation))
         {
             await Queue.EnqueueAsync(DispatchCommand.Message(conversation, Generated.NewMessageText()), TestContext.Current.CancellationToken);

@@ -18,6 +18,10 @@ public sealed class ListenerToolset(
 
     public const string RelayToMasterName = "relay_to_master";
 
+    public const string ListenerIdArgument = "listenerId";
+
+    public const string MessageArgument = "message";
+
     public IList<AITool> Create()
     {
         List<AITool> tools =

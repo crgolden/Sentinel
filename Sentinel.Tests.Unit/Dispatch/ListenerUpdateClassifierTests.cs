@@ -93,7 +93,7 @@ public sealed class ListenerUpdateClassifierTests
     public void FindApproval_DataPartOfAnotherKind_IsIgnored()
     {
         // Arrange
-        var other = Part.FromData(JsonSerializer.SerializeToElement(new Dictionary<string, string> { ["kind"] = Generated.LowercaseToken(10) }));
+        var other = Part.FromData(JsonSerializer.SerializeToElement(new Dictionary<string, string> { [ApprovalContract.KindProperty] = Generated.LowercaseToken(10) }));
 
         // Act
         var approval = ListenerUpdateClassifier.FindApproval([other, Part.FromText(Generated.NewMessageText())]);
@@ -135,17 +135,21 @@ public sealed class ListenerUpdateClassifierTests
             Generated.NewUtcTimestamp()),
         SentinelJson.Options));
 
-    private static PendingApproval Approval(string listenerApprovalId) => new(
-        Guid.NewGuid(),
-        ApprovalKind.ListenerInput,
-        new ConversationKey(Generated.NewUserId(), Generated.LowercaseToken(8)),
-        null,
-        Generated.LowercaseToken(8),
-        JsonSerializer.Serialize(new Dictionary<string, string>()),
-        ApprovalRisk.Low,
-        Generated.NewMessageText(),
-        Generated.NewUtcTimestamp(),
-        null,
-        listenerApprovalId,
-        null);
+    private static PendingApproval Approval(string listenerApprovalId)
+    {
+        var approvalId = Guid.NewGuid();
+        return new PendingApproval(
+            approvalId,
+            ApprovalKind.ListenerInput,
+            new ConversationKey(Generated.NewUserId(), Generated.LowercaseToken(8)),
+            null,
+            Generated.LowercaseToken(8),
+            JsonSerializer.Serialize(new Dictionary<string, string>()),
+            ApprovalRisk.Low,
+            Generated.NewMessageText(),
+            Generated.NewUtcTimestamp(),
+            null,
+            listenerApprovalId,
+            null);
+    }
 }

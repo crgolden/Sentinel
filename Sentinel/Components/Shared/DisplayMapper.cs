@@ -18,6 +18,32 @@ public static class DisplayMapper
 
     public const string Info = "bg-info text-dark";
 
+    public const string BorderPrimary = "border-primary";
+
+    public const string BorderSuccess = "border-success";
+
+    public const string BorderDanger = "border-danger";
+
+    public const string BorderWarning = "border-warning";
+
+    public const string BorderNeutral = "border-secondary";
+
+    public const string EntryDanger = "list-group-item-danger";
+
+    public const string EntryWarning = "list-group-item-warning";
+
+    public const string EntryInfo = "list-group-item-info";
+
+    public const string EntryLight = "list-group-item-light";
+
+    public const string EntryPrimary = "list-group-item-primary";
+
+    public const string EntryDefault = "list-group-item";
+
+    public const string TimestampFormat = "yyyy-MM-dd HH:mm:ss 'UTC'";
+
+    public const string NeverTimestamp = "Never";
+
     public static string BadgeClass(ListenerState state) => state switch
     {
         ListenerState.Online => Success,
@@ -45,21 +71,21 @@ public static class DisplayMapper
     public static string BadgeClass(ApprovalRisk risk) => risk == ApprovalRisk.High ? Danger : Warning;
 
     public static string BorderClass(ListenerSnapshot snapshot) =>
-        snapshot.Definition.Kind == ListenerKind.Master ? "border-primary" : snapshot.State switch
+        snapshot.Definition.Kind == ListenerKind.Master ? BorderPrimary : snapshot.State switch
         {
-            ListenerState.Online => "border-success",
-            ListenerState.Offline => "border-danger",
-            ListenerState.Misconfigured => "border-warning",
-            _ => "border-secondary",
+            ListenerState.Online => BorderSuccess,
+            ListenerState.Offline => BorderDanger,
+            ListenerState.Misconfigured => BorderWarning,
+            _ => BorderNeutral,
         };
 
     public static string EntryClass(TranscriptEntry entry) => entry.Kind switch
     {
-        TranscriptEntryKind.Error => "list-group-item-danger",
-        TranscriptEntryKind.ApprovalRequested => "list-group-item-warning",
-        TranscriptEntryKind.ApprovalDecided => "list-group-item-info",
-        TranscriptEntryKind.Status => "list-group-item-light",
-        _ => entry.Role == TranscriptRole.Operator ? "list-group-item-primary" : "list-group-item",
+        TranscriptEntryKind.Error => EntryDanger,
+        TranscriptEntryKind.ApprovalRequested => EntryWarning,
+        TranscriptEntryKind.ApprovalDecided => EntryInfo,
+        TranscriptEntryKind.Status => EntryLight,
+        _ => entry.Role == TranscriptRole.Operator ? EntryPrimary : EntryDefault,
     };
 
     public static string Label(ListenerState state) => state switch
@@ -97,9 +123,11 @@ public static class DisplayMapper
     };
 
     public static string Timestamp(DateTimeOffset? at) =>
-        at is { } value ? value.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss 'UTC'", CultureInfo.InvariantCulture) : "Never";
+        at is { } value ? value.ToUniversalTime().ToString(TimestampFormat, CultureInfo.InvariantCulture) : NeverTimestamp;
 
     public static string ElementId(string prefix, Guid id) => $"{prefix}-{id:N}";
 
     public static string ElementId(string prefix, string id) => $"{prefix}-{id}";
+
+    public static string ElementId(string prefix, int index) => $"{prefix}-{index.ToString(CultureInfo.InvariantCulture)}";
 }

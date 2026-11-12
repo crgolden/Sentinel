@@ -4,9 +4,9 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using Microsoft.Extensions.Options;
 
-public sealed class Telemetry
+public sealed class Telemetry : IDisposable
 {
-    public static readonly ActivitySource ActivitySource = new(Metrics.SourceName);
+    private readonly ActivitySource _activitySource = new(Metrics.SourceName);
 
     private readonly Counter<long> _listenerRefreshFailureCounter;
     private readonly Counter<long> _feedRefreshFailureCounter;
@@ -29,6 +29,9 @@ public sealed class Telemetry
             Metrics.ApprovalDecisionCounterName,
             description: telemetryOptions.Value.ApprovalDecisionDescription);
     }
+
+    public Activity? StartActivity(string name) =>
+        _activitySource.CreateActivity(name, ActivityKind.Internal)?.Start();
 
     public void ListenerRefreshFailed(string listenerId, Exception exception)
     {
@@ -73,6 +76,8 @@ public sealed class Telemetry
             {
                 { Metrics.DecisionTagName, approved ? Metrics.ApprovedDecision : Metrics.RejectedDecision },
             });
+
+    public void Dispose() => _activitySource.Dispose();
 
     internal static class Metrics
     {

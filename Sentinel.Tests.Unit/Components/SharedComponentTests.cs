@@ -1,6 +1,8 @@
 namespace Sentinel.Tests.Unit.Components;
 
+using AngleSharp.Dom;
 using Bunit;
+using Sentinel.Components;
 using Sentinel.Components.Shared;
 using Sentinel.Feeds;
 using Sentinel.Listeners;
@@ -41,10 +43,10 @@ public sealed class SharedComponentTests : IDisposable
         var cut = _harness.Context.Render<ListenerTile>(parameters => parameters.Add(p => p.Snapshot, snapshot).Add(p => p.Status, status));
 
         // Assert
-        Assert.Contains(description, cut.Find($"#listener-tile-{snapshot.Id}").TextContent, StringComparison.Ordinal);
-        Assert.NotNull(cut.Find($"#listener-master-{snapshot.Id}"));
-        Assert.Equal(nameof(ListenerHealth.Unhealthy), cut.Find($"#listener-health-{snapshot.Id}").TextContent);
-        Assert.Equal($"listeners/{snapshot.Id}", cut.Find($"#listener-open-{snapshot.Id}").GetAttribute("href"));
+        Assert.Contains(description, cut.Find($"#{DisplayMapper.ElementId(ElementIds.ListenerTile, snapshot.Id)}").TextContent, StringComparison.Ordinal);
+        Assert.NotNull(cut.Find($"#{DisplayMapper.ElementId(ElementIds.ListenerMaster, snapshot.Id)}"));
+        Assert.Equal(nameof(ListenerHealth.Unhealthy), cut.Find($"#{DisplayMapper.ElementId(ElementIds.ListenerHealthBadge, snapshot.Id)}").TextContent);
+        Assert.Equal(PageRoutes.Listener(snapshot.Id), cut.Find($"#{DisplayMapper.ElementId(ElementIds.ListenerOpen, snapshot.Id)}").GetAttribute(AttributeNames.Href));
     }
 
     [Fact]
@@ -57,7 +59,7 @@ public sealed class SharedComponentTests : IDisposable
         var cut = _harness.Context.Render<ListenerTile>(parameters => parameters.Add(p => p.Snapshot, snapshot));
 
         // Assert
-        Assert.Equal(DisplayMapper.Label(ListenerProblem.ForeignOrigin), cut.Find($"#listener-problem-{snapshot.Id}").TextContent);
+        Assert.Equal(DisplayMapper.Label(ListenerProblem.ForeignOrigin), cut.Find($"#{DisplayMapper.ElementId(ElementIds.ListenerProblemText, snapshot.Id)}").TextContent);
     }
 
     [Fact]
@@ -83,10 +85,10 @@ public sealed class SharedComponentTests : IDisposable
         var cut = _harness.Context.Render<ArtifactList>(parameters => parameters.Add(p => p.Items, [item]).Add(p => p.Id, id));
 
         // Assert
-        var rendered = cut.Find($"#artifact-{item.Id}");
+        var rendered = cut.Find($"#{DisplayMapper.ElementId(ElementIds.Artifact, item.Id)}");
         Assert.Contains(item.Title, rendered.TextContent, StringComparison.Ordinal);
         Assert.Contains(text, rendered.TextContent, StringComparison.Ordinal);
-        Assert.Equal(link.ToString(), rendered.QuerySelector("a")?.GetAttribute("href"));
+        Assert.Equal(link.ToString(), cut.Find($"#{DisplayMapper.ElementId(ElementIds.ArtifactLink, item.Id)}").GetAttribute(AttributeNames.Href));
     }
 
     [Fact]
@@ -99,7 +101,7 @@ public sealed class SharedComponentTests : IDisposable
         var cut = _harness.Context.Render<ArtifactList>(parameters => parameters.Add(p => p.Items, []).Add(p => p.Id, id));
 
         // Assert
-        Assert.Empty(cut.FindAll("li"));
+        Assert.NotNull(cut.Find($"#{DisplayMapper.ElementId(id, ElementIds.EmptyState)}"));
     }
 
     [Fact]
@@ -112,10 +114,10 @@ public sealed class SharedComponentTests : IDisposable
         var cut = _harness.Context.Render<ApprovalCard>(parameters => parameters
             .Add(p => p.Approval, approval)
             .Add(p => p.OnDecided, decision => decisions.Add(decision)));
-        cut.Find($"#approval-reason-{approval.Id:N}").Change(reason);
+        cut.Find($"#{DisplayMapper.ElementId(ElementIds.ApprovalReason, approval.Id)}").Change(reason);
 
         // Act
-        cut.Find($"#approve-{approval.Id:N}").Click();
+        cut.Find($"#{DisplayMapper.ElementId(ElementIds.Approve, approval.Id)}").Click();
 
         // Assert
         Assert.Equal([new ApprovalDecision(approval.Id, true, reason)], decisions);
@@ -131,10 +133,10 @@ public sealed class SharedComponentTests : IDisposable
         var cut = _harness.Context.Render<ApprovalCard>(parameters => parameters
             .Add(p => p.Approval, approval)
             .Add(p => p.OnDecided, decision => decisions.Add(decision)));
-        cut.Find($"#approval-reason-{approval.Id:N}").Change(reason);
+        cut.Find($"#{DisplayMapper.ElementId(ElementIds.ApprovalReason, approval.Id)}").Change(reason);
 
         // Act
-        cut.Find($"#reject-{approval.Id:N}").Click();
+        cut.Find($"#{DisplayMapper.ElementId(ElementIds.Reject, approval.Id)}").Click();
 
         // Assert
         Assert.Equal([new ApprovalDecision(approval.Id, false, reason)], decisions);
@@ -150,8 +152,8 @@ public sealed class SharedComponentTests : IDisposable
         var cut = _harness.Context.Render<ApprovalCard>(parameters => parameters.Add(p => p.Approval, approval).Add(p => p.OnDecided, _ => { }));
 
         // Assert
-        Assert.Equal(approval.ArgumentsJson, cut.Find($"#approval-arguments-{approval.Id:N}").TextContent);
-        Assert.Equal(approval.Risk.ToString(), cut.Find($"#approval-risk-{approval.Id:N}").TextContent);
+        Assert.Equal(approval.ArgumentsJson, cut.Find($"#{DisplayMapper.ElementId(ElementIds.ApprovalArguments, approval.Id)}").TextContent);
+        Assert.Equal(approval.Risk.ToString(), cut.Find($"#{DisplayMapper.ElementId(ElementIds.ApprovalRisk, approval.Id)}").TextContent);
     }
 
     public void Dispose() => _harness.Dispose();

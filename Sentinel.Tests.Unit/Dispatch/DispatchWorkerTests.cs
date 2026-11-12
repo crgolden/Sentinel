@@ -98,8 +98,9 @@ public sealed class DispatchWorkerTests : IDisposable
     {
         // Arrange
         var conversation = new ConversationKey(Generated.NewUserId(), Generated.LowercaseToken(8));
+        var continuationToken = Guid.NewGuid().ToByteArray();
         _store.Setup(store => store.GetActiveRunsAsync()).ReturnsAsync([conversation]);
-        _store.Setup(store => store.GetRunAsync(conversation)).ReturnsAsync(Run(Guid.NewGuid().ToByteArray()));
+        _store.Setup(store => store.GetRunAsync(conversation)).ReturnsAsync(Run(continuationToken));
 
         // Act
         await _worker.RecoverAsync(TestContext.Current.CancellationToken);
@@ -114,7 +115,7 @@ public sealed class DispatchWorkerTests : IDisposable
         // Arrange
         var conversation = ConversationKey.Orchestrator(Generated.NewUserId());
         _store.Setup(store => store.GetActiveRunsAsync()).ReturnsAsync([conversation]);
-        _store.Setup(store => store.GetRunAsync(conversation)).ReturnsAsync(Run(null));
+        _store.Setup(store => store.GetRunAsync(conversation)).ReturnsAsync(Run([]));
 
         // Act
         await _worker.RecoverAsync(TestContext.Current.CancellationToken);
@@ -130,6 +131,12 @@ public sealed class DispatchWorkerTests : IDisposable
         _telemetry.Dispose();
     }
 
-    private static RunRecord Run(byte[]? token) =>
-        new(Guid.NewGuid(), RunState.Running, Generated.NewUtcTimestamp(), Generated.NewUtcTimestamp(), Generated.LowercaseToken(10), token);
+    private static RunRecord Run(byte[] continuationToken)
+    {
+        var runId = Guid.NewGuid();
+        var startedAt = Generated.NewUtcTimestamp();
+        var updatedAt = Generated.NewUtcTimestamp();
+        var taskId = Generated.LowercaseToken(10);
+        return new RunRecord(runId, RunState.Running, startedAt, updatedAt, taskId, continuationToken);
+    }
 }

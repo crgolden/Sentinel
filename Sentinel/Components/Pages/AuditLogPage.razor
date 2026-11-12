@@ -14,9 +14,9 @@ else
     <table class="table table-sm table-striped" id="audit-log">
         <thead><tr><th>At</th><th>Operator</th><th>Action</th><th>Target</th><th>Detail</th></tr></thead>
         <tbody>
-            @foreach (var entry in Entries)
+            @foreach (var (entry, index) in Entries.Select((entry, index) => (entry, index)))
             {
-                <tr>
+                <tr id="@DisplayMapper.ElementId(ElementIds.AuditLogRow, index)">
                     <td>@DisplayMapper.Timestamp(entry.At)</td>
                     <td class="font-monospace">@entry.OperatorId.ToString("N")</td>
                     <td>@entry.Action</td>

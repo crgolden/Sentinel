@@ -38,7 +38,7 @@ public sealed class DispatchWorker(
     {
         foreach (var key in await store.GetActiveRunsAsync())
         {
-            if (!key.IsOrchestrator && await store.GetRunAsync(key) is { ContinuationToken: not null })
+            if (!key.IsOrchestrator && await store.GetRunAsync(key) is { ContinuationToken.Length: > 0 })
             {
                 await queue.EnqueueAsync(DispatchCommand.Resume(key), cancellationToken);
             }

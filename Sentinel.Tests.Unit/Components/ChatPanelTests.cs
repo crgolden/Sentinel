@@ -1,5 +1,6 @@
 namespace Sentinel.Tests.Unit.Components;
 
+using AngleSharp.Dom;
 using Bunit;
 using Moq;
 using Sentinel.Components.Shared;
@@ -26,8 +27,8 @@ public sealed class ChatPanelTests : IDisposable
         var cut = Render();
 
         // Assert
-        Assert.Contains(operatorEntry.Text, cut.Find($"#transcript-entry-{operatorEntry.Id:N}").TextContent, StringComparison.Ordinal);
-        Assert.Contains(agentEntry.Text, cut.Find($"#transcript-entry-{agentEntry.Id:N}").TextContent, StringComparison.Ordinal);
+        Assert.Contains(operatorEntry.Text, cut.Find($"#{DisplayMapper.ElementId(ElementIds.TranscriptEntry, operatorEntry.Id)}").TextContent, StringComparison.Ordinal);
+        Assert.Contains(agentEntry.Text, cut.Find($"#{DisplayMapper.ElementId(ElementIds.TranscriptEntry, agentEntry.Id)}").TextContent, StringComparison.Ordinal);
         Assert.Equal(DisplayMapper.Label(RunState.Completed), cut.Find("#chat-run-state").TextContent);
     }
 
@@ -59,7 +60,7 @@ public sealed class ChatPanelTests : IDisposable
 
         // Assert
         _harness.Queue.Verify(queue => queue.EnqueueAsync(DispatchCommand.Message(_conversation, text, null), It.IsAny<CancellationToken>()), Times.Once);
-        Assert.True(string.IsNullOrWhiteSpace(cut.Find("#chat-input").GetAttribute("value")));
+        Assert.True(string.IsNullOrWhiteSpace(cut.Find("#chat-input").GetAttribute(AttributeNames.Value)));
     }
 
     [Fact]
@@ -79,7 +80,7 @@ public sealed class ChatPanelTests : IDisposable
         // Assert
         Assert.Contains(delta, streamed, StringComparison.Ordinal);
         Assert.Empty(cut.FindAll("#chat-streaming"));
-        Assert.NotNull(cut.Find($"#transcript-entry-{entry.Id:N}"));
+        Assert.NotNull(cut.Find($"#{DisplayMapper.ElementId(ElementIds.TranscriptEntry, entry.Id)}"));
     }
 
     [Fact]
@@ -93,7 +94,7 @@ public sealed class ChatPanelTests : IDisposable
         _harness.Hub.Publish(new ConversationEvent(_conversation, ConversationEventKind.RunStateChanged, null, null, RunState.Running));
 
         // Assert
-        Assert.True(cut.Find("#chat-send").HasAttribute("disabled"));
+        Assert.True(cut.Find("#chat-send").HasAttribute(AttributeNames.Disabled));
         Assert.NotNull(cut.Find("#chat-cancel"));
     }
 
@@ -126,7 +127,7 @@ public sealed class ChatPanelTests : IDisposable
             .Add(p => p.Enabled, false));
 
         // Assert
-        Assert.True(cut.Find("#chat-input").HasAttribute("disabled"));
+        Assert.True(cut.Find("#chat-input").HasAttribute(AttributeNames.Disabled));
     }
 
     public void Dispose() => _harness.Dispose();

@@ -65,8 +65,8 @@ try
             elasticsearchPassword = builder.Configuration.GetRequired<string>(SettingKeys.ElasticsearchPassword);
         var keepaliveInterval = TimeSpan.FromMinutes(builder.Configuration.GetRequired<int>(SettingKeys.KeepaliveIntervalMinutes));
         builder.Services.Configure<AspNetCoreTraceInstrumentationOptions>(options => options.Filter = context =>
-            !context.Request.Path.StartsWithSegments("/health", StringComparison.OrdinalIgnoreCase)
-            && !context.Request.Path.StartsWithSegments("/ping", StringComparison.OrdinalIgnoreCase));
+            !context.Request.Path.StartsWithSegments(EndpointRoutes.Health, StringComparison.OrdinalIgnoreCase)
+            && !context.Request.Path.StartsWithSegments(EndpointRoutes.Ping, StringComparison.OrdinalIgnoreCase));
         builder.Services
             .AddSerilog((serviceProvider, loggerConfiguration) => loggerConfiguration
                 .ReadFrom.Configuration(builder.Configuration)
@@ -239,8 +239,8 @@ try
     app.UseAuthentication();
     app.UseAuthorization();
     app.UseAntiforgery();
-    app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false }).DisableHttpMetrics().AllowAnonymous();
-    app.MapGet("/ping", () => Results.Ok()).DisableHttpMetrics().AllowAnonymous();
+    app.MapHealthChecks(EndpointRoutes.Health, new HealthCheckOptions { Predicate = _ => false }).DisableHttpMetrics().AllowAnonymous();
+    app.MapGet(EndpointRoutes.Ping, () => Results.Ok()).DisableHttpMetrics().AllowAnonymous();
     app.MapPost("/logout", () => Results.SignOut(
             new AuthenticationProperties { RedirectUri = "/" },
             [CookieAuthenticationDefaults.AuthenticationScheme, OpenIdConnectDefaults.AuthenticationScheme]))

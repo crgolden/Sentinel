@@ -91,7 +91,8 @@ public sealed class ListenerDispatchTests(SentinelWebApplicationFactory factory)
         Assert.Equal($"{reply} {tool}", (await Reader.GetTranscriptAsync(conversation))[^1].Text);
         Assert.Empty(await Approvals.GetPendingAsync(conversation.OperatorId));
         Assert.Contains(factory.ToolListener.Handler.ReceivedDecisions, decision => decision.Operator == conversation.OperatorId && decision.Approved == approved);
-        var audit = await factory.Services.GetRequiredService<IAuditReader>().ReadLatestAsync(50);
+        var auditWindow = Generated.NewCountCeiling();
+        var audit = await factory.Services.GetRequiredService<IAuditReader>().ReadLatestAsync(auditWindow);
         Assert.Contains(audit, entry => entry.OperatorId == conversation.OperatorId && entry.Action == action && entry.ApprovalId == pending.Id);
         Assert.Contains(audit, entry => entry.OperatorId == conversation.OperatorId && entry.Action == AuditAction.ApprovalRequested && entry.ApprovalId == pending.Id);
     }
@@ -130,7 +131,8 @@ public sealed class ListenerDispatchTests(SentinelWebApplicationFactory factory)
         Assert.True(canceled);
         Assert.Equal(RunState.Canceled, await waiter.Settled);
         await factory.ToolListener.Handler.SlowTaskCanceled.Task.WaitAsync(TestContext.Current.CancellationToken);
-        var audit = await factory.Services.GetRequiredService<IAuditReader>().ReadLatestAsync(50);
+        var auditWindow = Generated.NewCountCeiling();
+        var audit = await factory.Services.GetRequiredService<IAuditReader>().ReadLatestAsync(auditWindow);
         Assert.Contains(audit, entry => entry.OperatorId == conversation.OperatorId && entry.Action == AuditAction.RunCanceled);
     }
 

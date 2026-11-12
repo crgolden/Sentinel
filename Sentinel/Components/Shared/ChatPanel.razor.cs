@@ -106,7 +106,7 @@ public sealed partial class ChatPanel : IDisposable
                 break;
             case { Kind: ConversationEventKind.RunStateChanged, State: { } state }:
                 Run = Run is null ? null : Run with { State = state };
-                Run ??= new RunRecord(Guid.Empty, state, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null, null);
+                Run ??= new RunRecord(Guid.Empty, state, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null, []);
                 if (state != RunState.Running)
                 {
                     _streaming.Clear();

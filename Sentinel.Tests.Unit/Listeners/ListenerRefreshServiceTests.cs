@@ -49,7 +49,7 @@ public sealed class ListenerRefreshServiceTests : IDisposable
     public async Task RefreshAll_CardOnAnotherOrigin_MarksTheListenerMisconfiguredWithoutKeepingTheCard()
     {
         // Arrange
-        var card = ListenerFixtures.Card(new Uri($"https://{Generated.NewHostname()}/"));
+        var card = ListenerFixtures.Card(new UriBuilder(Uri.UriSchemeHttps, Generated.NewHostname()).Uri);
         _cardSource.Setup(source => source.GetCardAsync(_definition.BaseAddress, It.IsAny<CancellationToken>())).ReturnsAsync(card);
 
         // Act

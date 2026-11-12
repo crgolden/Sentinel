@@ -65,11 +65,14 @@ public sealed class AuthorizationPoliciesTests
     [Fact]
     public void Constants_MatchTheIdentityRegistration()
     {
+        // Arrange
+        string[] registration = ["sentinel.operator", "sentinel", "role", "sub"];
+
         // Act
-        var constants = (AuthorizationPolicies.OperatorRole, AuthorizationPolicies.SentinelIdentityScope, AuthorizationPolicies.RoleClaimType, AuthorizationPolicies.SubjectClaimType);
+        string[] constants = [AuthorizationPolicies.OperatorRole, AuthorizationPolicies.SentinelIdentityScope, AuthorizationPolicies.RoleClaimType, AuthorizationPolicies.SubjectClaimType];
 
         // Assert
-        Assert.Equal(("sentinel.operator", "sentinel", "role", "sub"), constants);
+        Assert.Equal(registration, constants);
     }
 
     private static ClaimsPrincipal Principal(params Claim[] claims) => new(new ClaimsIdentity(claims, Generated.LowercaseToken(6)));

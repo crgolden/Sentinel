@@ -1,18 +1,18 @@
 @if (Approval is { } approval)
 {
-    <div class="card border-2 border-warning mb-3" id="@DisplayMapper.ElementId("approval", approval.Id)">
+    <div class="card border-2 border-warning mb-3" id="@DisplayMapper.ElementId(ElementIds.ApprovalCard, approval.Id)">
         <div class="card-header d-flex align-items-center justify-content-between">
             <span class="fw-semibold">@approval.Tool <span class="text-muted small">on @approval.Conversation.TargetId</span></span>
-            <span class="badge @DisplayMapper.BadgeClass(approval.Risk)" id="@DisplayMapper.ElementId("approval-risk", approval.Id)">@approval.Risk</span>
+            <span class="badge @DisplayMapper.BadgeClass(approval.Risk)" id="@DisplayMapper.ElementId(ElementIds.ApprovalRisk, approval.Id)">@approval.Risk</span>
         </div>
         <div class="card-body">
             <p class="mb-2">@approval.Summary</p>
-            <pre class="bg-body-tertiary border rounded p-2 small mb-2" id="@DisplayMapper.ElementId("approval-arguments", approval.Id)">@approval.ArgumentsJson</pre>
+            <pre class="bg-body-tertiary border rounded p-2 small mb-2" id="@DisplayMapper.ElementId(ElementIds.ApprovalArguments, approval.Id)">@approval.ArgumentsJson</pre>
             <p class="small text-muted mb-2">Requested @DisplayMapper.Timestamp(approval.RequestedAt)@(approval.ExpiresAt is { } expires ? $", expires {DisplayMapper.Timestamp(expires)}" : null)</p>
-            <input class="form-control form-control-sm mb-2" placeholder="Reason (optional)" id="@DisplayMapper.ElementId("approval-reason", approval.Id)" @bind="Reason" />
+            <input class="form-control form-control-sm mb-2" placeholder="Reason (optional)" id="@DisplayMapper.ElementId(ElementIds.ApprovalReason, approval.Id)" @bind="Reason" />
             <div class="d-flex gap-2">
-                <button class="btn btn-success btn-sm" id="@DisplayMapper.ElementId("approve", approval.Id)" disabled="@Busy" @onclick="() => DecideAsync(true)">Approve</button>
-                <button class="btn btn-outline-danger btn-sm" id="@DisplayMapper.ElementId("reject", approval.Id)" disabled="@Busy" @onclick="() => DecideAsync(false)">Reject</button>
+                <button class="btn btn-success btn-sm" id="@DisplayMapper.ElementId(ElementIds.Approve, approval.Id)" disabled="@Busy" @onclick="() => DecideAsync(true)">Approve</button>
+                <button class="btn btn-outline-danger btn-sm" id="@DisplayMapper.ElementId(ElementIds.Reject, approval.Id)" disabled="@Busy" @onclick="() => DecideAsync(false)">Reject</button>
             </div>
         </div>
     </div>

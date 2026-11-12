@@ -12,14 +12,16 @@ public sealed class OrchestratorRunnerTests
     {
         // Arrange
         var requestId = Generated.LowercaseToken(10);
-        var call = new FunctionCallContent(Generated.LowercaseToken(10), ListenerToolset.RelayToMasterName, new Dictionary<string, object?> { ["message"] = Generated.NewMessageText() });
+        var argumentName = Generated.LowercaseToken(7);
+        var argumentValue = Generated.NewMessageText();
+        var call = new FunctionCallContent(Generated.LowercaseToken(10), ListenerToolset.RelayToMasterName, new Dictionary<string, object?> { [argumentName] = argumentValue });
 
         // Act
         var toolCall = OrchestratorRunner.ToolCallOf(new ToolApprovalRequestContent(requestId, call));
 
         // Assert
         Assert.Equal((requestId, call.CallId, call.Name), (toolCall.RequestId, toolCall.CallId, toolCall.Name));
-        Assert.Equal(call.Arguments?["message"], JsonDocument.Parse(toolCall.ArgumentsJson).RootElement.GetProperty("message").GetString());
+        Assert.Equal(argumentValue, JsonDocument.Parse(toolCall.ArgumentsJson).RootElement.GetProperty(argumentName).GetString());
     }
 
     [Theory]
@@ -28,7 +30,8 @@ public sealed class OrchestratorRunnerTests
     public void ResponseOf_StoredToolCall_RebuildsTheResponseForTheSameCall(bool approved)
     {
         // Arrange
-        var call = new FunctionCallContent(Generated.LowercaseToken(10), ListenerToolset.RelayToMasterName, new Dictionary<string, object?> { ["message"] = Generated.NewMessageText() });
+        var argumentName = Generated.LowercaseToken(7);
+        var call = new FunctionCallContent(Generated.LowercaseToken(10), ListenerToolset.RelayToMasterName, new Dictionary<string, object?> { [argumentName] = Generated.NewMessageText() });
         var toolCall = OrchestratorRunner.ToolCallOf(new ToolApprovalRequestContent(Generated.LowercaseToken(10), call));
         var reason = Generated.NewMessageText();
 

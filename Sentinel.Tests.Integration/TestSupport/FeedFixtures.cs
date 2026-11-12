@@ -21,10 +21,11 @@ internal static class FeedFixtures
             GeneratedAt = Generated.NewUtcTimestamp(),
             Items = [new ArtifactItem(Generated.LowercaseToken(12), Generated.NewDisplayName(), ArtifactKind.AuditReport, Generated.NewUtcTimestamp(), Generated.NewMessageText(), null, Generated.NewMessageText())],
         };
+        var sessionId = Guid.NewGuid().ToString();
         var board = new BoardSnapshot
         {
             GeneratedAt = Generated.NewUtcTimestamp(),
-            Sessions = [new SessionRow(Guid.NewGuid().ToString(), Generated.NewHostLabel(), Generated.NewMessageText(), null, Generated.NewUtcTimestamp())],
+            Sessions = [new SessionRow(sessionId, Generated.NewHostLabel(), Generated.NewMessageText(), null, Generated.NewUtcTimestamp())],
             Audits = [new AuditRow(Generated.LowercaseToken(8), Generated.NewUtcTimestamp(), Generated.NewMessageText(), null, Generated.NewUtcTimestamp())],
         };
         return new FeedPayloads(

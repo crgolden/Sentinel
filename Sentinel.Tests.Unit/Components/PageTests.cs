@@ -1,9 +1,11 @@
 namespace Sentinel.Tests.Unit.Components;
 
+using System.Globalization;
 using Bunit;
 using Moq;
 using Sentinel.Approvals;
 using Sentinel.Components.Pages;
+using Sentinel.Components.Shared;
 using Sentinel.Conversations;
 using Sentinel.Dispatch;
 using Sentinel.Feeds;
@@ -24,15 +26,16 @@ public sealed class PageTests : IDisposable
         _harness.Listeners(tool, master);
         _harness.NoFeeds(tool.Id);
         _harness.NoFeeds(master.Id);
-        _harness.Approvals.Setup(approvals => approvals.GetPendingAsync(_harness.OperatorId)).ReturnsAsync([ApprovalFixtures.Pending()]);
+        PendingApproval[] pending = [ApprovalFixtures.Pending()];
+        _harness.Approvals.Setup(approvals => approvals.GetPendingAsync(_harness.OperatorId)).ReturnsAsync(pending);
 
         // Act
         var cut = _harness.Context.Render<Dashboard>();
 
         // Assert
-        Assert.NotNull(cut.Find($"#listener-tile-{tool.Id}"));
-        Assert.NotNull(cut.Find($"#listener-tile-{master.Id}"));
-        Assert.Equal("1", cut.Find("#dashboard-approval-count").TextContent);
+        Assert.NotNull(cut.Find($"#{DisplayMapper.ElementId(ElementIds.ListenerTile, tool.Id)}"));
+        Assert.NotNull(cut.Find($"#{DisplayMapper.ElementId(ElementIds.ListenerTile, master.Id)}"));
+        Assert.Equal(pending.Length.ToString(CultureInfo.InvariantCulture), cut.Find("#dashboard-approval-count").TextContent);
     }
 
     [Fact]
@@ -67,7 +70,7 @@ public sealed class PageTests : IDisposable
         // Assert
         Assert.Equal(listener.Definition.DisplayName, cut.Find("#listener-title").TextContent);
         Assert.Contains(check.Name, cut.Find("#listener-status").TextContent, StringComparison.Ordinal);
-        Assert.NotNull(cut.Find($"#artifact-{artifact.Id}"));
+        Assert.NotNull(cut.Find($"#{DisplayMapper.ElementId(ElementIds.Artifact, artifact.Id)}"));
         Assert.NotNull(cut.Find("#chat-panel"));
     }
 
@@ -141,7 +144,7 @@ public sealed class PageTests : IDisposable
         var cut = _harness.Context.Render<ApprovalsPage>();
 
         // Act
-        cut.Find($"#approve-{approval.Id:N}").Click();
+        cut.Find($"#{DisplayMapper.ElementId(ElementIds.Approve, approval.Id)}").Click();
 
         // Assert
         Assert.NotNull(cut.Find("#approvals-message"));
@@ -161,7 +164,7 @@ public sealed class PageTests : IDisposable
         _harness.Hub.Publish(new ConversationEvent(approval.Conversation, ConversationEventKind.EntryAppended, entry, null, null));
 
         // Assert
-        cut.WaitForAssertion(() => Assert.NotNull(cut.Find($"#approval-{approval.Id:N}")));
+        cut.WaitForAssertion(() => Assert.NotNull(cut.Find($"#{DisplayMapper.ElementId(ElementIds.ApprovalCard, approval.Id)}")));
     }
 
     [Fact]
@@ -169,17 +172,21 @@ public sealed class PageTests : IDisposable
     {
         // Arrange
         var master = ListenerFixtures.Online(ListenerFixtures.Definition(ListenerKind.Master));
-        var session = new SessionRow(Guid.NewGuid().ToString(), Generated.NewHostLabel(), Generated.NewMessageText(), null, Generated.NewUtcTimestamp());
+        var sessionId = Guid.NewGuid().ToString();
+        var session = new SessionRow(sessionId, Generated.NewHostLabel(), Generated.NewMessageText(), null, Generated.NewUtcTimestamp());
         var handoff = new HandoffRow(Generated.LowercaseToken(10), Generated.LowercaseToken(6), Generated.LowercaseToken(6), Generated.NewMessageText(), Generated.LowercaseToken(5), null, Generated.NewUtcTimestamp());
+        var claim = new ClaimRow { SessionId = session.SessionId, Repo = Generated.LowercaseToken(6), ClaimedAt = Generated.NewUtcTimestamp(), Files = [Generated.LowercaseToken(6)] };
+        var gate = new GateRow(session.SessionId, session.Machine, Generated.LowercaseToken(6), GateState.Finished, Generated.LowercaseToken(6), Generated.NewUtcTimestamp());
+        var inventory = new InventoryRow(session.Machine, session.SessionId, Generated.LowercaseToken(6), session.Goal, Generated.NewUtcTimestamp());
         _harness.Listeners(master);
         _harness.Feeds.Setup(feeds => feeds.GetBoardAsync(master.Id)).ReturnsAsync(new BoardSnapshot
         {
             GeneratedAt = Generated.NewUtcTimestamp(),
             Sessions = [session],
-            Claims = [new ClaimRow { SessionId = session.SessionId, Repo = Generated.LowercaseToken(6), ClaimedAt = Generated.NewUtcTimestamp(), Files = [Generated.LowercaseToken(6)] }],
-            Gates = [new GateRow(session.SessionId, session.Machine, Generated.LowercaseToken(6), GateState.Finished, Generated.LowercaseToken(6), Generated.NewUtcTimestamp())],
+            Claims = [claim],
+            Gates = [gate],
             Handoffs = [handoff],
-            Inventory = [new InventoryRow(session.Machine, session.SessionId, Generated.LowercaseToken(6), session.Goal, Generated.NewUtcTimestamp())],
+            Inventory = [inventory],
         });
 
         // Act
@@ -188,9 +195,9 @@ public sealed class PageTests : IDisposable
         // Assert
         Assert.Contains(session.SessionId, cut.Find("#board-sessions").TextContent, StringComparison.Ordinal);
         Assert.Contains(handoff.Summary, cut.Find("#board-handoffs").TextContent, StringComparison.Ordinal);
-        Assert.Single(cut.FindAll("#board-claims tbody tr"));
-        Assert.Single(cut.FindAll("#board-gates tbody tr"));
-        Assert.Single(cut.FindAll("#board-inventory tbody tr"));
+        Assert.Collection(cut.FindAll(RowsOf(ElementIds.BoardClaimRow)), row => Assert.Contains(claim.Repo, row.TextContent, StringComparison.Ordinal));
+        Assert.Collection(cut.FindAll(RowsOf(ElementIds.BoardGateRow)), row => Assert.Contains(gate.Repo, row.TextContent, StringComparison.Ordinal));
+        Assert.Collection(cut.FindAll(RowsOf(ElementIds.BoardInventoryRow)), row => Assert.Contains(inventory.State, row.TextContent, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -223,8 +230,8 @@ public sealed class PageTests : IDisposable
 
         // Assert
         Assert.Contains(run.Summary, cut.Find("#audit-runs").TextContent, StringComparison.Ordinal);
-        Assert.NotNull(cut.Find($"#artifact-{report.Id}"));
-        Assert.Empty(cut.FindAll($"#artifact-{log.Id}"));
+        Assert.NotNull(cut.Find($"#{DisplayMapper.ElementId(ElementIds.Artifact, report.Id)}"));
+        Assert.Empty(cut.FindAll($"#{DisplayMapper.ElementId(ElementIds.Artifact, log.Id)}"));
     }
 
     [Fact]
@@ -255,8 +262,8 @@ public sealed class PageTests : IDisposable
         var cut = _harness.Context.Render<ArtifactsPage>();
 
         // Assert
-        Assert.NotNull(cut.Find($"#artifacts-{withArtifacts.Id}"));
-        Assert.Empty(cut.FindAll($"#artifacts-{without.Id}"));
+        Assert.NotNull(cut.Find($"#{DisplayMapper.ElementId(ElementIds.ListenerArtifacts, withArtifacts.Id)}"));
+        Assert.Empty(cut.FindAll($"#{DisplayMapper.ElementId(ElementIds.ListenerArtifacts, without.Id)}"));
     }
 
     [Fact]
@@ -276,18 +283,19 @@ public sealed class PageTests : IDisposable
     public void AuditLogPage_Entries_RendersARowEach()
     {
         // Arrange
-        AuditEntry[] entries =
-        [
-            new(Generated.NewUtcTimestamp(), _harness.OperatorId, AuditAction.ApprovalGranted, Generated.LowercaseToken(8), Guid.NewGuid(), Generated.NewMessageText()),
-            new(Generated.NewUtcTimestamp(), _harness.OperatorId, AuditAction.MessageDispatched, Generated.LowercaseToken(8), null, null),
-        ];
-        _harness.Audit.Setup(audit => audit.ReadLatestAsync(It.IsAny<int>())).ReturnsAsync(entries);
+        var approvalId = Guid.NewGuid();
+        var granted = new AuditEntry(Generated.NewUtcTimestamp(), _harness.OperatorId, AuditAction.ApprovalGranted, Generated.LowercaseToken(8), approvalId, Generated.NewMessageText());
+        var dispatched = new AuditEntry(Generated.NewUtcTimestamp(), _harness.OperatorId, AuditAction.MessageDispatched, Generated.LowercaseToken(8), null, null);
+        _harness.Audit.Setup(audit => audit.ReadLatestAsync(It.IsAny<int>())).ReturnsAsync([granted, dispatched]);
 
         // Act
         var cut = _harness.Context.Render<AuditLogPage>();
 
         // Assert
-        Assert.Equal(2, cut.FindAll("#audit-log tbody tr").Count);
+        Assert.Collection(
+            cut.FindAll(RowsOf(ElementIds.AuditLogRow)),
+            row => Assert.Contains(granted.TargetId, row.TextContent, StringComparison.Ordinal),
+            row => Assert.Contains(dispatched.TargetId, row.TextContent, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -314,4 +322,6 @@ public sealed class PageTests : IDisposable
     }
 
     public void Dispose() => _harness.Dispose();
+
+    private static string RowsOf(string rowPrefix) => $"[id^='{rowPrefix}-']";
 }

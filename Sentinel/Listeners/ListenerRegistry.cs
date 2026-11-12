@@ -54,8 +54,8 @@ public sealed class ListenerRegistry : IListenerDirectory
     private static IReadOnlyList<ListenerSnapshot> Order(IEnumerable<ListenerSnapshot> snapshots) =>
     [
         .. snapshots
-            .OrderByDescending(snapshot => snapshot.Definition.Kind == ListenerKind.Master)
-            .ThenByDescending(snapshot => snapshot.Definition.Pinned)
+            .OrderByDescending(snapshot => snapshot.Definition.Kind == ListenerKind.Master, Comparer<bool>.Default)
+            .ThenByDescending(snapshot => snapshot.Definition.Pinned, Comparer<bool>.Default)
             .ThenBy(snapshot => snapshot.Definition.DisplayName, StringComparer.Ordinal),
     ];
 }

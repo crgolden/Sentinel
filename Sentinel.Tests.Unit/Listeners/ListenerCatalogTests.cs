@@ -19,15 +19,53 @@ public sealed class ListenerCatalogTests
         Assert.Same(definitions, actual);
     }
 
-    [Theory]
-    [InlineData("Upper")]
-    [InlineData("1digit")]
-    [InlineData("has space")]
-    [InlineData(ListenerCatalog.OrchestratorTargetId)]
-    public void Validate_InvalidOrReservedId_Throws(string id)
+    [Fact]
+    public void Validate_UppercaseId_Throws()
     {
         // Arrange
-        var definition = ListenerFixtures.Definition() with { Id = id };
+        var uppercaseId = Generated.UppercaseToken(8);
+        var definition = ListenerFixtures.Definition() with { Id = uppercaseId };
+
+        // Act
+        var exception = Record.Exception(() => ListenerCatalog.Validate([definition]));
+
+        // Assert
+        Assert.IsType<InvalidOperationException>(exception);
+    }
+
+    [Fact]
+    public void Validate_IdStartingWithADigit_Throws()
+    {
+        // Arrange
+        var digitFirstId = $"{Generated.DigitToken(1)}{Generated.LowercaseToken(7)}";
+        var definition = ListenerFixtures.Definition() with { Id = digitFirstId };
+
+        // Act
+        var exception = Record.Exception(() => ListenerCatalog.Validate([definition]));
+
+        // Assert
+        Assert.IsType<InvalidOperationException>(exception);
+    }
+
+    [Fact]
+    public void Validate_IdWithASpace_Throws()
+    {
+        // Arrange
+        var spacedId = $"{Generated.LowercaseToken(4)} {Generated.LowercaseToken(4)}";
+        var definition = ListenerFixtures.Definition() with { Id = spacedId };
+
+        // Act
+        var exception = Record.Exception(() => ListenerCatalog.Validate([definition]));
+
+        // Assert
+        Assert.IsType<InvalidOperationException>(exception);
+    }
+
+    [Fact]
+    public void Validate_ReservedOrchestratorId_Throws()
+    {
+        // Arrange
+        var definition = ListenerFixtures.Definition() with { Id = ListenerCatalog.OrchestratorTargetId };
 
         // Act
         var exception = Record.Exception(() => ListenerCatalog.Validate([definition]));
@@ -40,7 +78,7 @@ public sealed class ListenerCatalogTests
     public void Validate_HttpBaseAddress_Throws()
     {
         // Arrange
-        var definition = ListenerFixtures.Definition() with { BaseAddress = new Uri($"http://{Generated.NewHostname()}/") };
+        var definition = ListenerFixtures.Definition() with { BaseAddress = new UriBuilder(Uri.UriSchemeHttp, Generated.NewHostname()).Uri };
 
         // Act
         var exception = Record.Exception(() => ListenerCatalog.Validate([definition]));

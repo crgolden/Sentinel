@@ -11,7 +11,7 @@ public sealed class ListenerCardValidatorTests
     public void Problem_InterfacesOnTheConfiguredOrigin_ReturnsNone()
     {
         // Arrange
-        var baseAddress = new Uri($"https://{Generated.NewHostname()}/");
+        var baseAddress = new UriBuilder(Uri.UriSchemeHttps, Generated.NewHostname()).Uri;
         var card = ListenerFixtures.Card(baseAddress);
 
         // Act
@@ -25,7 +25,7 @@ public sealed class ListenerCardValidatorTests
     public void Problem_NoInterfaces_ReturnsNoInterfaces()
     {
         // Arrange
-        var baseAddress = new Uri($"https://{Generated.NewHostname()}/");
+        var baseAddress = new UriBuilder(Uri.UriSchemeHttps, Generated.NewHostname()).Uri;
         var card = ListenerFixtures.Card(baseAddress);
         card.SupportedInterfaces = [];
 
@@ -40,8 +40,8 @@ public sealed class ListenerCardValidatorTests
     public void Problem_PlainHttpInterface_ReturnsInsecureInterface()
     {
         // Arrange
-        var baseAddress = new Uri($"https://{Generated.NewHostname()}/");
-        var card = ListenerFixtures.Card(new Uri($"http://{baseAddress.Host}/"));
+        var baseAddress = new UriBuilder(Uri.UriSchemeHttps, Generated.NewHostname()).Uri;
+        var card = ListenerFixtures.Card(new UriBuilder(Uri.UriSchemeHttp, baseAddress.Host).Uri);
 
         // Act
         var problem = ListenerCardValidator.Problem(card, baseAddress);
@@ -54,8 +54,8 @@ public sealed class ListenerCardValidatorTests
     public void Problem_InterfaceOnAnotherHost_ReturnsForeignOrigin()
     {
         // Arrange
-        var baseAddress = new Uri($"https://{Generated.NewHostname()}/");
-        var card = ListenerFixtures.Card(new Uri($"https://{Generated.NewHostname()}/"));
+        var baseAddress = new UriBuilder(Uri.UriSchemeHttps, Generated.NewHostname()).Uri;
+        var card = ListenerFixtures.Card(new UriBuilder(Uri.UriSchemeHttps, Generated.NewHostname()).Uri);
 
         // Act
         var problem = ListenerCardValidator.Problem(card, baseAddress);
@@ -68,7 +68,7 @@ public sealed class ListenerCardValidatorTests
     public void Problem_InterfaceOnAnotherPort_ReturnsForeignOrigin()
     {
         // Arrange
-        var baseAddress = new Uri($"https://{Generated.NewHostname()}/");
+        var baseAddress = new UriBuilder(Uri.UriSchemeHttps, Generated.NewHostname()).Uri;
         var card = ListenerFixtures.Card(new UriBuilder(baseAddress) { Port = Generated.NewPortNumber() }.Uri);
 
         // Act
@@ -84,7 +84,7 @@ public sealed class ListenerCardValidatorTests
     public void SupportsFeeds_ReflectsTheFeedExtension(bool feeds)
     {
         // Arrange
-        var card = ListenerFixtures.Card(new Uri($"https://{Generated.NewHostname()}/"), feeds);
+        var card = ListenerFixtures.Card(new UriBuilder(Uri.UriSchemeHttps, Generated.NewHostname()).Uri, feeds);
 
         // Act
         var supported = ListenerCardValidator.SupportsFeeds(card);

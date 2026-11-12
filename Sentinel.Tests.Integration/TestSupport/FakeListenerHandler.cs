@@ -41,14 +41,12 @@ public sealed class FakeListenerHandler : IAgentHandler
             var tool = text[IntegrationConstants.ApprovalPrefix.Length..].Trim();
             var approvalId = Guid.NewGuid().ToString("N");
             _pendingTools[approvalId] = tool;
-            var request = JsonSerializer.SerializeToElement(new Dictionary<string, object>
-            {
-                ["kind"] = ApprovalContract.RequestKind,
-                ["approvalId"] = approvalId,
-                ["tool"] = tool,
-                ["arguments"] = new Dictionary<string, object> { ["target"] = tool },
-                ["risk"] = "high",
-            });
+            var argumentName = Generated.NewJsonPropertyName();
+            var arguments = JsonSerializer.SerializeToElement(new Dictionary<string, string>(StringComparer.Ordinal) { [argumentName] = tool });
+            var request = JsonSerializer.SerializeToElement(
+                new ApprovalRequestPart(ApprovalContract.RequestKind, approvalId, tool, arguments, ApprovalRisk.High, null),
+                SentinelJson.Options);
+            var prompt = Generated.NewMessageText();
             await updater.RequireInputAsync(
                 new Message
                 {
@@ -56,7 +54,7 @@ public sealed class FakeListenerHandler : IAgentHandler
                     Role = Role.Agent,
                     ContextId = contextId,
                     TaskId = context.TaskId,
-                    Parts = [Part.FromText($"Run {tool}?"), Part.FromData(request)],
+                    Parts = [Part.FromText(prompt), Part.FromData(request)],
                 },
                 cancellationToken: cancellationToken);
             return;

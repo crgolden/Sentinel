@@ -13,7 +13,7 @@
         }
         @foreach (var entry in Entries)
         {
-            <li class="list-group-item @DisplayMapper.EntryClass(entry)" id="@DisplayMapper.ElementId("transcript-entry", entry.Id)">
+            <li class="list-group-item @DisplayMapper.EntryClass(entry)" id="@DisplayMapper.ElementId(ElementIds.TranscriptEntry, entry.Id)">
                 <div class="d-flex justify-content-between small text-muted">
                     <span>@DisplayMapper.Label(entry.Role)</span>
                     <span>@DisplayMapper.Timestamp(entry.At)</span>
@@ -21,7 +21,7 @@
                 <pre class="mb-0 text-break">@entry.Text</pre>
                 @if (entry.Kind == TranscriptEntryKind.ApprovalRequested)
                 {
-                    <a href="@PageRoutes.Approvals" class="small" id="@DisplayMapper.ElementId("transcript-approval", entry.Id)">Review on the approvals page</a>
+                    <a href="@PageRoutes.Approvals" class="small" id="@DisplayMapper.ElementId(ElementIds.TranscriptApproval, entry.Id)">Review on the approvals page</a>
                 }
             </li>
         }

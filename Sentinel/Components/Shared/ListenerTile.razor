@@ -1,15 +1,15 @@
 @if (Snapshot is { } snapshot)
 {
 <div class="col">
-    <div class="card h-100 border-2 @DisplayMapper.BorderClass(snapshot)" id="@DisplayMapper.ElementId("listener-tile", snapshot.Id)">
+    <div class="card h-100 border-2 @DisplayMapper.BorderClass(snapshot)" id="@DisplayMapper.ElementId(ElementIds.ListenerTile, snapshot.Id)">
         <div class="card-header d-flex align-items-center justify-content-between">
             <span class="fw-semibold text-truncate">@snapshot.Definition.DisplayName</span>
-            <StatusBadge State="snapshot.State" Id="@DisplayMapper.ElementId("listener-state", snapshot.Id)" />
+            <StatusBadge State="snapshot.State" Id="@DisplayMapper.ElementId(ElementIds.ListenerState, snapshot.Id)" />
         </div>
         <div class="card-body">
             @if (snapshot.Definition.Kind == ListenerKind.Master)
             {
-                <p class="mb-2"><span class="badge bg-primary" id="@DisplayMapper.ElementId("listener-master", snapshot.Id)">Master session</span></p>
+                <p class="mb-2"><span class="badge bg-primary" id="@DisplayMapper.ElementId(ElementIds.ListenerMaster, snapshot.Id)">Master session</span></p>
             }
             @if (snapshot.Card is { } card)
             {
@@ -18,19 +18,19 @@
             }
             else if (snapshot.State != ListenerState.Unknown)
             {
-                <p class="small text-muted mb-0" id="@DisplayMapper.ElementId("listener-problem", snapshot.Id)">@DisplayMapper.Label(snapshot.Problem)</p>
+                <p class="small text-muted mb-0" id="@DisplayMapper.ElementId(ElementIds.ListenerProblemText, snapshot.Id)">@DisplayMapper.Label(snapshot.Problem)</p>
             }
             @if (Status is { } status)
             {
                 <p class="mt-2 mb-0">
-                    <span class="badge @DisplayMapper.BadgeClass(status.Health)" id="@DisplayMapper.ElementId("listener-health", snapshot.Id)">@status.Health</span>
+                    <span class="badge @DisplayMapper.BadgeClass(status.Health)" id="@DisplayMapper.ElementId(ElementIds.ListenerHealthBadge, snapshot.Id)">@status.Health</span>
                     <span class="small ms-1">@status.Summary</span>
                 </p>
             }
         </div>
         <div class="card-footer d-flex align-items-center justify-content-between small">
             <span class="text-muted">Checked @DisplayMapper.Timestamp(snapshot.LastCheckedAt)</span>
-            <a href="@PageRoutes.Listener(snapshot.Id)" class="btn btn-sm btn-outline-primary" id="@DisplayMapper.ElementId("listener-open", snapshot.Id)">Open</a>
+            <a href="@PageRoutes.Listener(snapshot.Id)" class="btn btn-sm btn-outline-primary" id="@DisplayMapper.ElementId(ElementIds.ListenerOpen, snapshot.Id)">Open</a>
         </div>
     </div>
 </div>

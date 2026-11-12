@@ -37,7 +37,7 @@ public sealed class ConversationJournal(
     public async Task<RunRecord> StartRunAsync(ConversationKey key)
     {
         var now = timeProvider.GetUtcNow();
-        var run = new RunRecord(Guid.NewGuid(), RunState.Running, now, now, null, null);
+        var run = new RunRecord(Guid.NewGuid(), RunState.Running, now, now, null, []);
         await SaveRunAsync(key, run);
         return run;
     }

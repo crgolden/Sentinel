@@ -6,19 +6,17 @@ using Sentinel.Approvals;
 
 public static class ListenerUpdateClassifier
 {
-    private const string KindProperty = "kind";
-
     public static ListenerUpdate Classify(object? rawRepresentation) => rawRepresentation switch
     {
         Message message => new ListenerUpdate(null, message.TaskId, FindApproval(message.Parts)),
-        AgentTask task => new ListenerUpdate(task.Status.State, task.Id, FindApproval(task.Status.Message?.Parts)),
-        TaskStatusUpdateEvent statusUpdate => new ListenerUpdate(statusUpdate.Status.State, statusUpdate.TaskId, FindApproval(statusUpdate.Status.Message?.Parts)),
+        AgentTask task => new ListenerUpdate(task.Status.State, task.Id, FindApproval(task.Status.Message?.Parts ?? [])),
+        TaskStatusUpdateEvent statusUpdate => new ListenerUpdate(statusUpdate.Status.State, statusUpdate.TaskId, FindApproval(statusUpdate.Status.Message?.Parts ?? [])),
         TaskArtifactUpdateEvent artifactUpdate => new ListenerUpdate(null, artifactUpdate.TaskId, null),
         _ => ListenerUpdate.None,
     };
 
-    public static ApprovalRequestPart? FindApproval(IEnumerable<Part>? parts) =>
-        parts?
+    public static ApprovalRequestPart? FindApproval(IEnumerable<Part> parts) =>
+        parts
             .Select(part => part.Data)
             .OfType<JsonElement>()
             .Where(IsApprovalRequest)
@@ -38,7 +36,7 @@ public static class ListenerUpdateClassifier
 
     private static bool IsApprovalRequest(JsonElement data) =>
         data.ValueKind == JsonValueKind.Object
-        && data.TryGetProperty(KindProperty, out var kind)
+        && data.TryGetProperty(ApprovalContract.KindProperty, out var kind)
         && kind.ValueKind == JsonValueKind.String
         && string.Equals(kind.GetString(), ApprovalContract.RequestKind, StringComparison.Ordinal);
 }

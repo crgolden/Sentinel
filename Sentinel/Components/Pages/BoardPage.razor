@@ -27,9 +27,9 @@ else
     <table class="table table-sm table-striped" id="board-inventory">
         <thead><tr><th>Machine</th><th>Session</th><th>State</th><th>Goal</th><th>At</th></tr></thead>
         <tbody>
-            @foreach (var row in board.Inventory)
+            @foreach (var (row, index) in board.Inventory.Select((row, index) => (row, index)))
             {
-                <tr><td>@row.Machine</td><td class="font-monospace">@row.SessionId</td><td>@row.State</td><td>@row.Goal</td><td>@DisplayMapper.Timestamp(row.At)</td></tr>
+                <tr id="@DisplayMapper.ElementId(ElementIds.BoardInventoryRow, index)"><td>@row.Machine</td><td class="font-monospace">@row.SessionId</td><td>@row.State</td><td>@row.Goal</td><td>@DisplayMapper.Timestamp(row.At)</td></tr>
             }
         </tbody>
     </table>
@@ -37,9 +37,9 @@ else
     <table class="table table-sm table-striped" id="board-claims">
         <thead><tr><th>Session</th><th>Repo</th><th>Files</th><th>Claimed</th><th>Released</th></tr></thead>
         <tbody>
-            @foreach (var row in board.Claims)
+            @foreach (var (row, index) in board.Claims.Select((row, index) => (row, index)))
             {
-                <tr><td class="font-monospace">@row.SessionId</td><td>@row.Repo</td><td>@Join(", ", row.Files)</td><td>@DisplayMapper.Timestamp(row.ClaimedAt)</td><td>@DisplayMapper.Timestamp(row.ReleasedAt)</td></tr>
+                <tr id="@DisplayMapper.ElementId(ElementIds.BoardClaimRow, index)"><td class="font-monospace">@row.SessionId</td><td>@row.Repo</td><td>@Join(", ", row.Files)</td><td>@DisplayMapper.Timestamp(row.ClaimedAt)</td><td>@DisplayMapper.Timestamp(row.ReleasedAt)</td></tr>
             }
         </tbody>
     </table>
@@ -47,9 +47,9 @@ else
     <table class="table table-sm table-striped" id="board-gates">
         <thead><tr><th>Session</th><th>Machine</th><th>Repo</th><th>State</th><th>Verdict</th><th>At</th></tr></thead>
         <tbody>
-            @foreach (var row in board.Gates)
+            @foreach (var (row, index) in board.Gates.Select((row, index) => (row, index)))
             {
-                <tr><td class="font-monospace">@row.SessionId</td><td>@row.Machine</td><td>@row.Repo</td><td>@row.State</td><td>@row.Verdict</td><td>@DisplayMapper.Timestamp(row.At)</td></tr>
+                <tr id="@DisplayMapper.ElementId(ElementIds.BoardGateRow, index)"><td class="font-monospace">@row.SessionId</td><td>@row.Machine</td><td>@row.Repo</td><td>@row.State</td><td>@row.Verdict</td><td>@DisplayMapper.Timestamp(row.At)</td></tr>
             }
         </tbody>
     </table>

@@ -2,6 +2,8 @@ namespace Sentinel.Approvals;
 
 public static class ApprovalContract
 {
+    public const string KindProperty = "kind";
+
     public const string RequestKind = "sentinel.approval.request/v1";
 
     public const string ResponseKind = "sentinel.approval.response/v1";

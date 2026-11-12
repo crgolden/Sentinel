@@ -15,7 +15,7 @@ public sealed class A2AAgentCardSourceTests
     public async Task GetCardAsync_FetchesTheWellKnownCardFromTheBaseAddress()
     {
         // Arrange
-        var baseAddress = new Uri($"https://{Generated.NewHostname()}/");
+        var baseAddress = new UriBuilder(Uri.UriSchemeHttps, Generated.NewHostname()).Uri;
         var card = ListenerFixtures.Card(baseAddress);
         var handler = StubHttpMessageHandler.Responding(HttpStatusCode.OK, JsonSerializer.Serialize(card, A2AJsonUtilities.DefaultOptions));
         var httpClientFactory = new Mock<IHttpClientFactory>(MockBehavior.Strict);
@@ -27,6 +27,6 @@ public sealed class A2AAgentCardSourceTests
 
         // Assert
         Assert.Equal((card.Name, card.Version), (fetched.Name, fetched.Version));
-        Assert.Equal(new Uri(baseAddress, ".well-known/agent-card.json"), Assert.Single(handler.Requests).RequestUri);
+        Assert.Equal(new Uri(baseAddress, A2AConstants.AgentCardPath), Assert.Single(handler.Requests).RequestUri);
     }
 }

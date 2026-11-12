@@ -26,8 +26,9 @@ public sealed class DispatchCommandTests
     public void Decision_TargetsTheApprovalsConversation()
     {
         // Arrange
+        var approvalId = Guid.NewGuid();
         var approval = new PendingApproval(
-            Guid.NewGuid(),
+            approvalId,
             ApprovalKind.ListenerInput,
             new ConversationKey(Generated.NewUserId(), Generated.LowercaseToken(8)),
             null,

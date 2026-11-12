@@ -1,5 +1,6 @@
 namespace Sentinel.Tests.Unit;
 
+using System.Diagnostics;
 using Sentinel.Tests.Unit.TestSupport;
 
 [Trait("Category", "Unit")]
@@ -89,5 +90,47 @@ public sealed class TelemetryTests : IDisposable
         Assert.Equal(decision, Assert.Single(capture.Measurements).Tags[Telemetry.Metrics.DecisionTagName]);
     }
 
+    [Fact]
+    public void StartActivity_StartsAnInternalSpanOnTheSentinelSource()
+    {
+        // Arrange
+        using var listener = ListenToSentinel();
+        var name = Generated.LowercaseToken(8);
+
+        // Act
+        using var activity = _harness.Telemetry.StartActivity(name);
+
+        // Assert
+        Assert.NotNull(activity);
+        Assert.Equal(Telemetry.Metrics.SourceName, activity.Source.Name);
+        Assert.Equal(ActivityKind.Internal, activity.Kind);
+        Assert.Equal(name, activity.OperationName);
+    }
+
+    [Fact]
+    public void StartActivity_StartsNoSpanOnceTheTelemetryIsDisposed()
+    {
+        // Arrange
+        using var listener = ListenToSentinel();
+        _harness.Telemetry.Dispose();
+
+        // Act
+        using var activity = _harness.Telemetry.StartActivity(Generated.LowercaseToken(8));
+
+        // Assert
+        Assert.Null(activity);
+    }
+
     public void Dispose() => _harness.Dispose();
+
+    private static ActivityListener ListenToSentinel()
+    {
+        var listener = new ActivityListener
+        {
+            ShouldListenTo = source => string.Equals(source.Name, Telemetry.Metrics.SourceName, StringComparison.Ordinal),
+            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
+        };
+        ActivitySource.AddActivityListener(listener);
+        return listener;
+    }
 }

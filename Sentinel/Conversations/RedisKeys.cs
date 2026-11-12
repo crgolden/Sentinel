@@ -10,6 +10,8 @@ public static class RedisKeys
 
     public const string Audit = Prefix + "audit";
 
+    public const string FeedsSegment = "feeds";
+
     public static string Transcript(ConversationKey key) => $"{Prefix}conversations:{key}:transcript";
 
     public static string Session(ConversationKey key) => $"{Prefix}conversations:{key}:session";
@@ -18,5 +20,7 @@ public static class RedisKeys
 
     public static string Approvals(Guid operatorId) => $"{Prefix}approvals:{operatorId:N}";
 
-    public static string Feed(string listenerId, FeedKind kind) => $"{Prefix}feeds:{listenerId}:{kind.ToString().ToLowerInvariant()}";
+    public static string Feed(string listenerId, FeedKind kind) => $"{Prefix}{FeedsSegment}:{listenerId}:{FeedSegment(kind)}";
+
+    public static string FeedSegment(FeedKind kind) => kind.ToString().ToLowerInvariant();
 }

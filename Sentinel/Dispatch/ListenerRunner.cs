@@ -24,7 +24,7 @@ public sealed class ListenerRunner(
     public async Task<ListenerTurnResult> RunAsync(DispatchCommand command, CancellationToken cancellationToken)
     {
         var key = command.Conversation;
-        using var activity = Telemetry.ActivitySource.CreateActivity("sentinel.listener.turn", ActivityKind.Internal)?.Start();
+        using var activity = telemetry.StartActivity("sentinel.listener.turn");
         activity?.SetTag(Telemetry.Metrics.ListenerTagName, key.TargetId);
         using var conversationLock = await locks.AcquireAsync(key, cancellationToken);
         if (agentProvider.GetAgent(key.TargetId) is not A2AAgent agent)
@@ -66,7 +66,7 @@ public sealed class ListenerRunner(
                         ]),
                 ];
                 break;
-            case DispatchCommandKind.Resume when run.ContinuationToken is { } token:
+            case DispatchCommandKind.Resume when run.ContinuationToken is { Length: > 0 } token:
                 options.ContinuationToken = ResponseContinuationToken.FromBytes(token);
                 break;
             default:
@@ -130,7 +130,7 @@ public sealed class ListenerRunner(
                 var classified = stream.Apply(update, delta => journal.PublishDelta(key, delta));
                 if (run.TaskId is null && classified.TaskId is { } taskId)
                 {
-                    run = await journal.SaveRunAsync(key, run with { TaskId = taskId, ContinuationToken = update.ContinuationToken?.ToBytes().ToArray() });
+                    run = await journal.SaveRunAsync(key, run with { TaskId = taskId, ContinuationToken = update.ContinuationToken?.ToBytes().ToArray() ?? [] });
                     current.Run = run;
                 }
             }
@@ -163,7 +163,7 @@ public sealed class ListenerRunner(
             ? await RequestApprovalAsync(command, approvalRequest, stream.StatusText)
             : null;
         var outcome = SessionPolicy.Outcome(stream.State, pending is not null);
-        await journal.SaveRunAsync(key, run with { State = outcome, ContinuationToken = null });
+        await journal.SaveRunAsync(key, run with { State = outcome, ContinuationToken = [] });
         if (command is { Kind: DispatchCommandKind.ApprovalDecision, Origin: { } origin } && reply is not null)
         {
             await journal.AppendAsync(origin, TranscriptRole.Agent, TranscriptEntryKind.Status, Format(CultureInfo.InvariantCulture, journal.Text.ListenerRepliedAfterApproval, key.TargetId, reply));

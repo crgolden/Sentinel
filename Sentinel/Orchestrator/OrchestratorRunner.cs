@@ -1,6 +1,5 @@
 namespace Sentinel.Orchestrator;
 
-using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Agents.AI;
@@ -21,7 +20,7 @@ public sealed class OrchestratorRunner(
     public async Task RunAsync(DispatchCommand command, CancellationToken cancellationToken)
     {
         var key = command.Conversation;
-        using var activity = Telemetry.ActivitySource.CreateActivity("sentinel.orchestrator.turn", ActivityKind.Internal)?.Start();
+        using var activity = telemetry.StartActivity("sentinel.orchestrator.turn");
         using var conversationLock = await locks.AcquireAsync(key, cancellationToken);
         var agent = agentFactory.Create();
         var session = await store.LoadSessionAsync(key) is { } serialized

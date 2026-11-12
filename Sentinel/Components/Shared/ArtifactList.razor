@@ -1,14 +1,14 @@
 <div class="card" id="@Id">
     @if (Items.Count == 0)
     {
-        <div class="card-body text-muted small">No artifacts.</div>
+        <div class="card-body text-muted small" id="@DisplayMapper.ElementId(Id, ElementIds.EmptyState)">No artifacts.</div>
     }
     else
     {
         <ul class="list-group list-group-flush">
             @foreach (var item in Items)
             {
-                <li class="list-group-item" id="@DisplayMapper.ElementId("artifact", item.Id)">
+                <li class="list-group-item" id="@DisplayMapper.ElementId(ElementIds.Artifact, item.Id)">
                     <div class="d-flex justify-content-between">
                         <span class="fw-semibold">@item.Title</span>
                         <span class="badge bg-secondary">@item.Kind</span>
@@ -27,7 +27,7 @@
                     }
                     @if (item.Link is { } link)
                     {
-                        <a href="@link" class="small" target="_blank" rel="noopener noreferrer">Open</a>
+                        <a href="@link" class="small" target="_blank" rel="noopener noreferrer" id="@DisplayMapper.ElementId(ElementIds.ArtifactLink, item.Id)">Open</a>
                     }
                 </li>
             }
@@ -42,5 +42,5 @@
 
     [Parameter]
     [EditorRequired]
-    public string? Id { get; set; }
+    public string Id { get; set; } = ElementIds.ArtifactList;
 }

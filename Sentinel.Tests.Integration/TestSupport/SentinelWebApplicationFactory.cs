@@ -21,7 +21,7 @@ public sealed class SentinelWebApplicationFactory : WebApplicationFactory<Progra
 
     private readonly HostRoutingHandler _routing = new();
     private readonly string _accessToken;
-    private readonly Uri _authority = new($"https://{Generated.NewHostname()}/");
+    private readonly Uri _authority = new UriBuilder(Uri.UriSchemeHttps, Generated.NewHostname()).Uri;
     private FakeListenerHost? _toolListener;
     private FakeListenerHost? _masterListener;
     private FakeListenerHost? _misconfiguredListener;
@@ -40,7 +40,7 @@ public sealed class SentinelWebApplicationFactory : WebApplicationFactory<Progra
 
     public FakeListenerHost MisconfiguredListener => _misconfiguredListener ?? throw new InvalidOperationException("The fixture is not initialized.");
 
-    public Uri OfflineListenerAddress { get; } = new($"https://{Generated.NewHostname()}/");
+    public Uri OfflineListenerAddress { get; } = new UriBuilder(Uri.UriSchemeHttps, Generated.NewHostname()).Uri;
 
     public string ToolListenerId { get; } = Generated.LowercaseToken(10);
 
@@ -56,12 +56,13 @@ public sealed class SentinelWebApplicationFactory : WebApplicationFactory<Progra
 
     public async ValueTask InitializeAsync()
     {
-        var toolAddress = new Uri($"https://{Generated.NewHostname()}/");
-        var masterAddress = new Uri($"https://{Generated.NewHostname()}/");
-        var misconfiguredAddress = new Uri($"https://{Generated.NewHostname()}/");
+        var toolAddress = new UriBuilder(Uri.UriSchemeHttps, Generated.NewHostname()).Uri;
+        var masterAddress = new UriBuilder(Uri.UriSchemeHttps, Generated.NewHostname()).Uri;
+        var misconfiguredAddress = new UriBuilder(Uri.UriSchemeHttps, Generated.NewHostname()).Uri;
+        var foreignInterfaceAddress = new UriBuilder(Uri.UriSchemeHttps, Generated.NewHostname()).Uri;
         _toolListener = await FakeListenerHost.StartAsync(ToolListenerId, toolAddress, _accessToken, toolAddress, Feeds);
         _masterListener = await FakeListenerHost.StartAsync(MasterListenerId, masterAddress, _accessToken, masterAddress, Feeds);
-        _misconfiguredListener = await FakeListenerHost.StartAsync(MisconfiguredListenerId, misconfiguredAddress, _accessToken, new Uri($"https://{Generated.NewHostname()}/"), Feeds);
+        _misconfiguredListener = await FakeListenerHost.StartAsync(MisconfiguredListenerId, misconfiguredAddress, _accessToken, foreignInterfaceAddress, Feeds);
         _routing.Route(toolAddress, ToolListener.HttpHandler);
         _routing.Route(masterAddress, MasterListener.HttpHandler);
         _routing.Route(misconfiguredAddress, MisconfiguredListener.HttpHandler);
@@ -147,10 +148,18 @@ public sealed class SentinelWebApplicationFactory : WebApplicationFactory<Progra
             [SettingKeys.SentinelClientSecret] = Generated.NewSecretValue(),
             [SettingKeys.AnthropicApiKey] = Generated.NewSecretValue(),
         };
-        AddListener(settings, 0, ToolListenerId, ToolListener.BaseAddress, ListenerKind.Tool);
-        AddListener(settings, 1, MasterListenerId, MasterListener.BaseAddress, ListenerKind.Master);
-        AddListener(settings, 2, MisconfiguredListenerId, MisconfiguredListener.BaseAddress, ListenerKind.Tool);
-        AddListener(settings, 3, OfflineListenerId, OfflineListenerAddress, ListenerKind.Tool);
+        (string Id, Uri BaseAddress, ListenerKind Kind)[] listeners =
+        [
+            (ToolListenerId, ToolListener.BaseAddress, ListenerKind.Tool),
+            (MasterListenerId, MasterListener.BaseAddress, ListenerKind.Master),
+            (MisconfiguredListenerId, MisconfiguredListener.BaseAddress, ListenerKind.Tool),
+            (OfflineListenerId, OfflineListenerAddress, ListenerKind.Tool),
+        ];
+        foreach (var (index, listener) in listeners.Index())
+        {
+            AddListener(settings, index, listener.Id, listener.BaseAddress, listener.Kind);
+        }
+
         return settings;
     }
 

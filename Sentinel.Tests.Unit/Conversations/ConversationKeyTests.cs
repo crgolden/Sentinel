@@ -59,6 +59,31 @@ public sealed class ConversationKeyTests
 
         // Assert
         Assert.All(keys, redisKey => Assert.StartsWith(RedisKeys.Prefix, redisKey, StringComparison.Ordinal));
-        Assert.Equal($"{RedisKeys.Prefix}feeds:{listenerId}:board", keys[4]);
+    }
+
+    [Fact]
+    public void RedisKeysFeed_ListenerAndKind_AreJoinedUnderTheFeedsSegment()
+    {
+        // Arrange
+        var listenerId = Generated.LowercaseToken(8);
+
+        // Act
+        var feedKey = RedisKeys.Feed(listenerId, FeedKind.Board);
+
+        // Assert
+        Assert.Equal($"{RedisKeys.Prefix}{RedisKeys.FeedsSegment}:{listenerId}:{RedisKeys.FeedSegment(FeedKind.Board)}", feedKey);
+    }
+
+    [Fact]
+    public void RedisKeys_Segments_MatchTheStoredKeyLayout()
+    {
+        // Arrange
+        string[] layout = ["sentinel:", "feeds"];
+
+        // Act
+        string[] segments = [RedisKeys.Prefix, RedisKeys.FeedsSegment];
+
+        // Assert
+        Assert.Equal(layout, segments);
     }
 }
