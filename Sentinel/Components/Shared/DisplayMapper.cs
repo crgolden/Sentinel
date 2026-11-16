@@ -70,14 +70,14 @@ public static class DisplayMapper
 
     public static string BadgeClass(ApprovalRisk risk) => risk == ApprovalRisk.High ? Danger : Warning;
 
-    public static string BorderClass(ListenerSnapshot snapshot) =>
-        snapshot.Definition.Kind == ListenerKind.Master ? BorderPrimary : snapshot.State switch
-        {
-            ListenerState.Online => BorderSuccess,
-            ListenerState.Offline => BorderDanger,
-            ListenerState.Misconfigured => BorderWarning,
-            _ => BorderNeutral,
-        };
+    public static string BorderClass(ListenerSnapshot snapshot) => snapshot switch
+    {
+        { Definition.Kind: ListenerKind.Master } => BorderPrimary,
+        { State: ListenerState.Online } => BorderSuccess,
+        { State: ListenerState.Offline } => BorderDanger,
+        { State: ListenerState.Misconfigured } => BorderWarning,
+        _ => BorderNeutral,
+    };
 
     public static string EntryClass(TranscriptEntry entry) => entry.Kind switch
     {

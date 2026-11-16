@@ -62,13 +62,13 @@ live stream.
 | Auth | OpenID Connect (operators), OAuth 2.0 client credentials (listeners) |
 | UI | Stock Bootstrap 5.3.8, no authored CSS |
 | Observability | OpenTelemetry to Grafana Alloy (OTLP), Serilog to Elasticsearch |
-| Hosting | Azure App Service (Windows, .NET 10, F1 plan, `win-x86`) |
+| Hosting | Azure App Service (Windows, .NET 11, F1 plan, `win-x86`) |
 
 ## Prerequisites
 
 | Tool | Notes |
 |---|---|
-| [.NET 10 SDK](https://dotnet.microsoft.com/download) | `global.json` pins `10.0.201` and rolls forward to the latest feature band |
+| [.NET 11 SDK](https://dotnet.microsoft.com/download) | `global.json` pins `11.0.100` and rolls forward to the latest feature band |
 | GitHub personal access token | `read:packages` scope, for the `Shared` package on the `crgolden` GitHub Packages feed (`NuGet.Config`). Store it as the `GitHub` source's credentials in your user NuGet configuration, never in this repo |
 | Redis | Any Redis the app can reach, with a password |
 | OpenID Connect provider | Registers the `sentinel` client, the `sentinel` identity resource carrying `role`, and the `listeners` API scope (see [Identity registration](#identity-registration)) |
@@ -136,12 +136,12 @@ Sentinel.Tests.Integration/   # xUnit v3, Category=Integration: real Redis and i
 
 ```powershell
 dotnet build Sentinel.Tests.Unit --configuration Debug
-.\Sentinel.Tests.Unit\bin\Debug\net10.0\Sentinel.Tests.Unit.exe -trait "Category=Unit"
+.\Sentinel.Tests.Unit\bin\Debug\net11.0\Sentinel.Tests.Unit.exe -trait "Category=Unit"
 
 $env:ASPNETCORE_ENVIRONMENT = "CI"
 $env:RedisHost = "localhost"; $env:RedisPort = "6379"; $env:RedisSsl = "false"; $env:RedisPassword = "<password>"; $env:RedisDatabase = "1"
 dotnet build Sentinel.Tests.Integration --configuration Debug
-.\Sentinel.Tests.Integration\bin\Debug\net10.0\Sentinel.Tests.Integration.exe -trait "Category=Integration"
+.\Sentinel.Tests.Integration\bin\Debug\net11.0\Sentinel.Tests.Integration.exe -trait "Category=Integration"
 ```
 
 See [TESTING.md](TESTING.md) for the full guide.

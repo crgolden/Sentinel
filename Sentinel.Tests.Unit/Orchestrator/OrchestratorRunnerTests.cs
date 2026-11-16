@@ -21,7 +21,7 @@ public sealed class OrchestratorRunnerTests
 
         // Assert
         Assert.Equal((requestId, call.CallId, call.Name), (toolCall.RequestId, toolCall.CallId, toolCall.Name));
-        Assert.Equal(argumentValue, JsonDocument.Parse(toolCall.ArgumentsJson).RootElement.GetProperty(argumentName).GetString());
+        Assert.Equal(argumentValue, JsonElement.Parse(toolCall.ArgumentsJson).GetProperty(argumentName).GetString());
     }
 
     [Theory]

@@ -31,7 +31,7 @@ The floor is the number of tests the tier must execute; fewer executed is a fail
 
 ```powershell
 dotnet build Sentinel.Tests.Unit --configuration Debug
-.\Sentinel.Tests.Unit\bin\Debug\net10.0\Sentinel.Tests.Unit.exe -trait "Category=Unit"
+.\Sentinel.Tests.Unit\bin\Debug\net11.0\Sentinel.Tests.Unit.exe -trait "Category=Unit"
 ```
 
 ### Integration Tests
@@ -44,7 +44,7 @@ $env:RedisSsl = "false"
 $env:RedisPassword = "<your local requirepass>"
 $env:RedisDatabase = "1"
 dotnet build Sentinel.Tests.Integration --configuration Debug
-.\Sentinel.Tests.Integration\bin\Debug\net10.0\Sentinel.Tests.Integration.exe -trait "Category=Integration"
+.\Sentinel.Tests.Integration\bin\Debug\net11.0\Sentinel.Tests.Integration.exe -trait "Category=Integration"
 ```
 
 The factory refuses any `RedisDatabase` other than 1, and deletes every `sentinel:*` key in that database before and

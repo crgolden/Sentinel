@@ -8,7 +8,7 @@ public sealed class FeedClient(IHttpClientFactory httpClientFactory, IOptions<Fe
 {
     public static Uri FeedUri(Uri baseAddress, FeedKind kind)
     {
-        var root = baseAddress.AbsoluteUri.EndsWith('/') ? baseAddress : new Uri($"{baseAddress.AbsoluteUri}/", UriKind.Absolute);
+        var root = baseAddress.AbsoluteUri.EndsWith('/', StringComparison.Ordinal) ? baseAddress : new Uri($"{baseAddress.AbsoluteUri}/", UriKind.Absolute);
         var path = kind switch
         {
             FeedKind.Status => FeedContract.StatusPath,

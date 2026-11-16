@@ -6,7 +6,6 @@ using A2A;
 using A2A.AspNetCore;
 using Duende.IdentityModel;
 using Microsoft.Agents.AI;
-using Microsoft.Agents.AI.Hosting.A2A;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
@@ -45,7 +44,6 @@ public sealed class FakeListenerHost : IAsyncDisposable
         builder.Services.AddKeyedSingleton<IAgentHandler>(name, handler);
         builder.Services.AddA2AServer(agent, options =>
         {
-            options.AgentRunMode = AgentRunMode.ReturnTask;
             options.ServerOptions = new A2AServerOptions { SupportsStreaming = true, SupportedInputModes = [MediaTypeNames.Text.Plain, MediaTypeNames.Application.Json] };
         });
         var app = builder.Build();

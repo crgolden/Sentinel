@@ -195,9 +195,9 @@ public sealed class PageTests : IDisposable
         // Assert
         Assert.Contains(session.SessionId, cut.Find("#board-sessions").TextContent, StringComparison.Ordinal);
         Assert.Contains(handoff.Summary, cut.Find("#board-handoffs").TextContent, StringComparison.Ordinal);
-        Assert.Collection(cut.FindAll(RowsOf(ElementIds.BoardClaimRow)), row => Assert.Contains(claim.Repo, row.TextContent, StringComparison.Ordinal));
-        Assert.Collection(cut.FindAll(RowsOf(ElementIds.BoardGateRow)), row => Assert.Contains(gate.Repo, row.TextContent, StringComparison.Ordinal));
-        Assert.Collection(cut.FindAll(RowsOf(ElementIds.BoardInventoryRow)), row => Assert.Contains(inventory.State, row.TextContent, StringComparison.Ordinal));
+        Assert.Contains(claim.Repo, Assert.Single(cut.FindAll(RowsOf(ElementIds.BoardClaimRow))).TextContent, StringComparison.Ordinal);
+        Assert.Contains(gate.Repo, Assert.Single(cut.FindAll(RowsOf(ElementIds.BoardGateRow))).TextContent, StringComparison.Ordinal);
+        Assert.Contains(inventory.State, Assert.Single(cut.FindAll(RowsOf(ElementIds.BoardInventoryRow))).TextContent, StringComparison.Ordinal);
     }
 
     [Fact]

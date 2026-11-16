@@ -30,7 +30,7 @@ jobs:
         if: github.actor == 'dependabot[bot]'
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '10.x'
+          dotnet-version: '11.x'
 
       - name: Regenerate lock files and push
         if: github.actor == 'dependabot[bot]'
@@ -103,7 +103,7 @@ jobs:
       - name: Set up .NET Core
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '10.x'
+          dotnet-version: '11.x'
 
       - name: Cache dotnet global tools
         id: cache-dotnet-tools
@@ -156,9 +156,9 @@ jobs:
 
       - name: Run unit tests with coverage
         run: >
-          dotnet coverlet Sentinel.Tests.Unit/bin/Release/net10.0
+          dotnet coverlet Sentinel.Tests.Unit/bin/Release/net11.0
           --target "dotnet"
-          --targetargs "test --project Sentinel.Tests.Unit --no-build --configuration Release -- --filter-trait Category=Unit --stop-on-fail on --report-xunit-trx --report-xunit-trx-filename unit-tests.trx --results-directory=Sentinel.Tests.Unit/bin/Release/net10.0/TestResults"
+          --targetargs "test --project Sentinel.Tests.Unit --no-build --configuration Release -- --filter-trait Category=Unit --stop-on-fail on --report-xunit-trx --report-xunit-trx-filename unit-tests.trx --results-directory=Sentinel.Tests.Unit/bin/Release/net11.0/TestResults"
           --format opencover --output "coverage.opencover.xml"
           --skipautoprops
           --exclude-by-attribute GeneratedCodeAttribute
@@ -179,7 +179,7 @@ jobs:
           RedisDatabase: ${{ vars.REDIS_DATABASE_TEST }}
         run: >
           dotnet-coverage collect
-          "dotnet test --project Sentinel.Tests.Integration --no-build --configuration Release -- --filter-trait Category=Integration --stop-on-fail on --report-xunit-trx --report-xunit-trx-filename integration-tests.trx --results-directory=Sentinel.Tests.Integration/bin/Release/net10.0/TestResults"
+          "dotnet test --project Sentinel.Tests.Integration --no-build --configuration Release -- --filter-trait Category=Integration --stop-on-fail on --report-xunit-trx --report-xunit-trx-filename integration-tests.trx --results-directory=Sentinel.Tests.Integration/bin/Release/net11.0/TestResults"
           -f xml -o "coverage-integration.xml" -s "coverage.settings.xml"
 
       - name: Upload test results
@@ -189,8 +189,8 @@ jobs:
           name: test-results
           if-no-files-found: error
           path: |
-            Sentinel.Tests.Unit/bin/Release/net10.0/TestResults/
-            Sentinel.Tests.Integration/bin/Release/net10.0/TestResults/
+            Sentinel.Tests.Unit/bin/Release/net11.0/TestResults/
+            Sentinel.Tests.Integration/bin/Release/net11.0/TestResults/
 
       - name: dotnet publish
         env:
@@ -199,7 +199,7 @@ jobs:
           dotnet publish Sentinel/Sentinel.csproj
           -c Release
           -r win-x86
-          --self-contained false
+          --self-contained true
           -o ${{ github.workspace }}/publish
 
       - name: Upload artifact for deployment job
@@ -254,11 +254,17 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_989CAAE958C140F58DF0A4CA445CD5C6 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_BF259A9C4A884D1CA6EB574AC4FE6FCB }}
 
+      - name: Run the app on .NET 11
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          AZURE_WEBAPP_NAME: ${{ vars.AZURE_WEBAPP_NAME }}
+        run: az webapp config set --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_WEBAPP_NAME --net-framework-version v11.0 --output none
+
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@02a81bead70021f5284939794bcec79c271ab383  # v3.0.8
         with:
-          app-name: 'crgolden-sentinel'
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
           slot-name: 'Production'
           package: .
 

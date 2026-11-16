@@ -18,7 +18,7 @@ public sealed class FeedRefreshTests(SentinelWebApplicationFactory factory)
         await factory.Hosted<FeedRefreshService>().RefreshAllAsync(TestContext.Current.CancellationToken);
 
         var reader = factory.Services.GetRequiredService<IFeedReader>();
-        var expectedStatus = JsonDocument.Parse(factory.Feeds.Status).RootElement.GetProperty("summary").GetString();
+        var expectedStatus = JsonElement.Parse(factory.Feeds.Status).GetProperty("summary").GetString();
         Assert.Equal(expectedStatus, (await reader.GetStatusAsync(factory.ToolListenerId))?.Summary);
         Assert.Single((await reader.GetArtifactsAsync(factory.ToolListenerId))?.Items ?? []);
         Assert.Single((await reader.GetBoardAsync(factory.MasterListenerId))?.Sessions ?? []);
