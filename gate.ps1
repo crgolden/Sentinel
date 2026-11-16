@@ -1,4 +1,4 @@
-param([string]$Goal, [string]$Probe)
+param([string]$Goal, [string]$Only)
 
 $ErrorActionPreference = 'Continue'
 $InformationPreference = 'Continue'
@@ -21,9 +21,9 @@ Register-StepInputs @{
     'Build with dotnet'                          = @('*')
     'Restore local tools'                        = @('dotnet-tools.json')
     'jb inspectcode'                             = @('*')
-    'Run unit tests with coverage'               = @('*')
-    'Local Redis (WSL) for the integration tier' = @('*')
-    'Run integration tests with coverage'        = @('*')
+    'Run unit tests with coverage'               = @('*', '!Sentinel.Tests.Integration/*')
+    'Local Redis (WSL) for the integration tier' = @('*', '!Sentinel.Tests.Unit/*')
+    'Run integration tests with coverage'        = @('*', '!Sentinel.Tests.Unit/*')
     'End Sonar analysis'                         = @('*')
     'Fail on open Sonar issues'                  = @('*')
 }
@@ -42,7 +42,97 @@ $redisStep = 'Local Redis (WSL) for the integration tier'
 $env:TZ = 'UTC'
 if ($env:TZ -ne 'UTC') { Write-Host 'GATE: FAILED (TZ pin)'; exit 1 }
 Set-Location $repo
-Initialize-GateState 'Sentinel' $repo -Probe $Probe
+$probeProjects = @('Sentinel.Tests.Unit', 'Sentinel.Tests.Integration')
+if ($Only) {
+    $probeFile, $probeTest = $Only -split '::', 2
+    $probeFile = "$probeFile".Trim().Replace('\', '/')
+    $probeTest = "$probeTest".Trim()
+    $probeProject = $probeFile.Split('/')[0]
+    if (-not $probeTest -or $probeTest.Contains(',') -or $probeProject -notin $probeProjects -or
+            -not (Test-Path -LiteralPath (Join-Path $repo $probeFile) -PathType Leaf)) {
+        Write-Host "PROBE: FAILED (a probe runs exactly one test, named by the file it lives in: -Only '<a test file under $($probeProjects -join ' | ')>::<test method>')"
+        exit 1
+    }
+    $probeClass = [IO.Path]::GetFileNameWithoutExtension($probeFile)
+}
+function Open-IntegrationRedis {
+    $fromEnvironment = -not [string]::IsNullOrWhiteSpace($env:RedisHost)
+    if ($fromEnvironment -and [string]::IsNullOrWhiteSpace($env:RedisPort)) {
+        return [pscustomobject]@{ Session = $null; Available = $false; FromEnvironment = $true; Endpoint = $null; Missing = 'RedisHost is set in the environment without RedisPort' }
+    }
+    $session = $null
+    if (-not $fromEnvironment) {
+        $sessionStart = [Diagnostics.ProcessStartInfo]::new('wsl.exe', '--exec sleep infinity')
+        $sessionStart.UseShellExecute = $true
+        $sessionStart.WindowStyle = 'Hidden'
+        $session = [Diagnostics.Process]::Start($sessionStart)
+    }
+    $settings = Get-Content -Raw (Join-Path $repo 'Sentinel\appsettings.Development.json') | ConvertFrom-Json
+    $redisHost = if ($fromEnvironment) { $env:RedisHost } else { $settings.RedisHost }
+    $redisPort = if ($fromEnvironment) { $env:RedisPort } else { $settings.RedisPort }
+    $available = $false
+    $deadline = [DateTimeOffset]::UtcNow.AddSeconds(60)
+    while (-not $available -and -not ($session -and $session.HasExited) -and [DateTimeOffset]::UtcNow -lt $deadline) {
+        $client = [Net.Sockets.TcpClient]::new()
+        try { $available = $client.ConnectAsync($redisHost, [int]$redisPort).Wait(1000) }
+        catch [AggregateException] { Start-Sleep -Seconds 1 }
+        finally { $client.Dispose() }
+    }
+    return [pscustomobject]@{ Session = $session; Available = $available; FromEnvironment = $fromEnvironment; Endpoint = "${redisHost}:$redisPort"; Host = $redisHost; Port = $redisPort; Ssl = "$($settings.RedisSsl)".ToLowerInvariant(); Missing = $null }
+}
+
+function Close-IntegrationRedis($redis) {
+    if ($redis.Session) {
+        if (-not $redis.Session.HasExited) { $redis.Session.Kill($true) }
+        $redis.Session.Dispose()
+    }
+}
+
+function Set-IntegrationEnvironment($redis) {
+    $env:ASPNETCORE_ENVIRONMENT = 'CI'
+    $env:RedisHost = $redis.Host
+    $env:RedisPort = $redis.Port
+    $env:RedisSsl ??= $redis.Ssl
+    $env:RedisDatabase = '1'
+}
+
+if ($Only) {
+    $probeIntegration = $probeProject -eq $probeProjects[1]
+    $redis = $null
+    if ($probeIntegration) {
+        if ([string]::IsNullOrWhiteSpace($env:RedisPassword)) { Write-Host 'PROBE: FAILED (RedisPassword must be set in the environment for the integration tier)'; exit 1 }
+        $redis = Open-IntegrationRedis
+        if (-not $redis.Available) {
+            Close-IntegrationRedis $redis
+            Write-Host "PROBE: FAILED ($(if ($redis.Missing) { $redis.Missing } else { "nothing accepted a connection on $($redis.Endpoint) within 60 seconds" }))"
+            exit 1
+        }
+        Set-IntegrationEnvironment $redis
+    }
+    try {
+        $probeResults = Join-Path $gateOutput 'probe-results'
+        $probeTrx = Join-Path $probeResults 'probe.trx'
+        if (Test-Path -LiteralPath $probeTrx) { Remove-Item -LiteralPath $probeTrx -Force }
+        Write-Host "PROBE: running one test, '$probeTest' of $probeClass in $probeProject; no gate record or verdict is written"
+        $global:LASTEXITCODE = $null
+        dotnet test --project $probeProject --no-build --configuration Release -- --filter-query "/*/*/$probeClass/$probeTest" --report-xunit-trx --report-xunit-trx-filename probe.trx --results-directory=$probeResults
+        $probeExit = $global:LASTEXITCODE
+    }
+    finally {
+        if ($redis) { Close-IntegrationRedis $redis }
+    }
+    if (-not (Test-Path -LiteralPath $probeTrx)) { Write-Host "PROBE: FAILED (no TRX, exit $probeExit)"; exit 1 }
+    [xml]$probeDoc = Get-Content -LiteralPath $probeTrx -Raw
+    $counters = $probeDoc.TestRun.ResultSummary.Counters
+    if ($probeExit -ne 0 -or [int]$counters.executed -ne 1 -or [int]$counters.failed -ne 0) {
+        Write-Host "PROBE: FAILED (a probe runs one test, and '$Only' executed $($counters.executed), failed $($counters.failed), exit $probeExit)"
+        exit 1
+    }
+    Write-Host "PROBE: PASSED for the one test named, against the last build's binaries; no verdict was saved"
+    exit 0
+}
+exit (Invoke-Gate {
+Initialize-GateState 'Sentinel' $repo
 Resolve-OwedSteps
 Invoke-CatalogSteps
 
@@ -90,35 +180,13 @@ if (Test-StepCarried $integrationStep) {
     Write-Row $redisStep 'NOT RUN' 'the integration tier carried its verdict, so no Redis is needed'
 }
 else {
-    $redisFromEnvironment = -not [string]::IsNullOrWhiteSpace($env:RedisHost)
-    if ($redisFromEnvironment -and [string]::IsNullOrWhiteSpace($env:RedisPort)) { Stop-Gate $redisStep 'RedisHost is set in the environment without RedisPort' }
-    $wslSession = $null
-    if (-not $redisFromEnvironment) {
-        $wslSessionStart = [Diagnostics.ProcessStartInfo]::new('wsl.exe', '--exec sleep infinity')
-        $wslSessionStart.UseShellExecute = $true
-        $wslSessionStart.WindowStyle = 'Hidden'
-        $wslSession = [Diagnostics.Process]::Start($wslSessionStart)
-    }
+    $redis = Open-IntegrationRedis
+    if ($redis.Missing) { Stop-Gate $redisStep $redis.Missing }
+    $redisFromEnvironment = $redis.FromEnvironment
+    $wslSession = $redis.Session
+    $redisEndpoint = $redis.Endpoint
+    $redisAvailable = $redis.Available
     try {
-        $redisSettings = Get-Content -Raw (Join-Path $repo 'Sentinel\appsettings.Development.json') | ConvertFrom-Json
-        $redisHost = if ($redisFromEnvironment) { $env:RedisHost } else { $redisSettings.RedisHost }
-        $redisPort = if ($redisFromEnvironment) { $env:RedisPort } else { $redisSettings.RedisPort }
-        $redisEndpoint = "${redisHost}:$redisPort"
-        $redisAvailable = $false
-        $redisDeadline = [DateTimeOffset]::UtcNow.AddSeconds(60)
-        while (-not $redisAvailable -and -not ($wslSession -and $wslSession.HasExited) -and [DateTimeOffset]::UtcNow -lt $redisDeadline) {
-            $redisProbe = [Net.Sockets.TcpClient]::new()
-            try {
-                $redisAvailable = $redisProbe.ConnectAsync($redisHost, [int]$redisPort).Wait(1000)
-            }
-            catch [AggregateException] {
-                Start-Sleep -Seconds 1
-            }
-            finally {
-                $redisProbe.Dispose()
-            }
-        }
-
         if ($redisAvailable -and $redisFromEnvironment) {
             Write-Row $redisStep 'PASS' "RedisHost taken from the environment, and $redisEndpoint accepts connections"
         }
@@ -126,8 +194,7 @@ else {
             Write-Row $redisStep 'PASS' "a WSL session is open and $redisEndpoint accepts connections"
         }
         elseif ($wslSession -and $wslSession.HasExited) {
-            Write-Row $redisStep 'SKIPPED' "WSL could not be started (wsl.exe exit $($wslSession.ExitCode))"
-            Write-Row $integrationStep 'SKIPPED' 'needs WSL Redis, and WSL could not be started'
+            Stop-Gate $redisStep "WSL could not be started (wsl.exe exit $($wslSession.ExitCode)), and the integration tier needs its Redis"
         }
         elseif ($redisFromEnvironment) {
             Stop-Gate $redisStep "nothing accepted a connection on $redisEndpoint (RedisHost from the environment) within 60 seconds"
@@ -139,11 +206,7 @@ else {
         if ($redisAvailable) {
             if (Test-Path $integrationTrx) { Remove-Item $integrationTrx -Force }
             if ([string]::IsNullOrWhiteSpace($env:RedisPassword)) { Stop-Gate $integrationStep 'RedisPassword must be set in the environment for the integration tier' }
-            $env:ASPNETCORE_ENVIRONMENT = 'CI'
-            $env:RedisHost = $redisHost
-            $env:RedisPort = $redisPort
-            $env:RedisSsl ??= "$($redisSettings.RedisSsl)".ToLowerInvariant()
-            $env:RedisDatabase = '1'
+            Set-IntegrationEnvironment $redis
             $global:LASTEXITCODE = $null
             dotnet-coverage collect `
                 "dotnet test --project Sentinel.Tests.Integration --no-build --configuration Release -- --filter-trait Category=Integration --stop-on-fail on --report-xunit-trx --report-xunit-trx-filename integration-tests.trx --results-directory=Sentinel.Tests.Integration/bin/Release/net11.0/TestResults" `
@@ -152,10 +215,7 @@ else {
         }
     }
     finally {
-        if ($wslSession) {
-            if (-not $wslSession.HasExited) { $wslSession.Kill($true) }
-            $wslSession.Dispose()
-        }
+        Close-IntegrationRedis $redis
     }
 }
 
@@ -168,3 +228,4 @@ if (-not $sonarCarried) {
 
 Write-Row 'Upload test results / dotnet publish / Upload artifact / deploy' 'NOT RUN' 'delivery steps, not checks'
 Complete-Gate
+})
