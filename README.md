@@ -4,7 +4,7 @@
 
 [![Quality gate](https://sonarcloud.io/api/project_badges/quality_gate?project=crgolden_Sentinel)](https://sonarcloud.io/summary/new_code?id=crgolden_Sentinel)
 
-An always-on operator portal, built as an ASP.NET Core 10 Blazor Server app on the Microsoft Agent Framework. It
+An always-on operator portal, built as an ASP.NET Core 11 Blazor Server app on the Microsoft Agent Framework. It
 watches and talks to any number of **listeners**: .NET apps that each run on their own server, specialize in one tool
 (Grafana, SQL Server, Redis and so on) and expose an Agent Framework agent over the
 [A2A protocol](https://a2a-protocol.org). One listener can be the **master bridge**, which relays to an always-on
@@ -25,7 +25,6 @@ Where to read next:
 - [LISTENERS.md](LISTENERS.md): the contract a listener implements to join Sentinel.
 - [TESTING.md](TESTING.md): how to run each test tier.
 - [DESIGN.md](DESIGN.md): the UI's visual rules.
-- [AGENTS.md](AGENTS.md): the invariants an agent editing this repo must keep.
 
 ## Architecture
 

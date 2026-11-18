@@ -2,7 +2,6 @@
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
     <File Path=".gitignore" />
-    <File Path="AGENTS.md" />
     <File Path="ARCHITECTURE.md" />
     <File Path="coverage.settings.xml" />
     <File Path="DESIGN.md" />
