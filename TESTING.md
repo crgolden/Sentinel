@@ -36,12 +36,11 @@ dotnet build Sentinel.Tests.Unit --configuration Debug
 
 ### Integration Tests
 
+The tier runs under `Development`: `Sentinel/appsettings.Development.json` names the local Redis, and the
+`RedisPassword` User Secret (README.md, "Configuration") is its password, so only the database is overridden.
+
 ```powershell
-$env:ASPNETCORE_ENVIRONMENT = "CI"
-$env:RedisHost = "localhost"
-$env:RedisPort = "6379"
-$env:RedisSsl = "false"
-$env:RedisPassword = "<your local requirepass>"
+$env:ASPNETCORE_ENVIRONMENT = "Development"
 $env:RedisDatabase = "1"
 dotnet build Sentinel.Tests.Integration --configuration Debug
 .\Sentinel.Tests.Integration\bin\Debug\net11.0\Sentinel.Tests.Integration.exe -trait "Category=Integration"

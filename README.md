@@ -137,8 +137,8 @@ Sentinel.Tests.Integration/   # xUnit v3, Category=Integration: real Redis and i
 dotnet build Sentinel.Tests.Unit --configuration Debug
 .\Sentinel.Tests.Unit\bin\Debug\net11.0\Sentinel.Tests.Unit.exe -trait "Category=Unit"
 
-$env:ASPNETCORE_ENVIRONMENT = "CI"
-$env:RedisHost = "localhost"; $env:RedisPort = "6379"; $env:RedisSsl = "false"; $env:RedisPassword = "<password>"; $env:RedisDatabase = "1"
+$env:ASPNETCORE_ENVIRONMENT = "Development"
+$env:RedisDatabase = "1"
 dotnet build Sentinel.Tests.Integration --configuration Debug
 .\Sentinel.Tests.Integration\bin\Debug\net11.0\Sentinel.Tests.Integration.exe -trait "Category=Integration"
 ```

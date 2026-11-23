@@ -86,26 +86,22 @@ function Close-IntegrationRedis($redis) {
     }
 }
 
-function Set-IntegrationEnvironment($redis) {
-    $env:ASPNETCORE_ENVIRONMENT = 'CI'
-    $env:RedisHost = $redis.Host
-    $env:RedisPort = $redis.Port
-    $env:RedisSsl ??= $redis.Ssl
-    $env:RedisDatabase = '1'
+function Set-IntegrationEnvironment {
+    $env:ASPNETCORE_ENVIRONMENT = 'Development'
+    $env:RedisDatabase ??= '1'
 }
 
 if ($Only) {
     $probeIntegration = $probeProject -eq $probeProjects[1]
     $redis = $null
     if ($probeIntegration) {
-        if ([string]::IsNullOrWhiteSpace($env:RedisPassword)) { Write-Host 'PROBE: FAILED (RedisPassword must be set in the environment for the integration tier)'; exit 1 }
         $redis = Open-IntegrationRedis
         if (-not $redis.Available) {
             Close-IntegrationRedis $redis
             Write-Host "PROBE: FAILED ($(if ($redis.Missing) { $redis.Missing } else { "nothing accepted a connection on $($redis.Endpoint) within 60 seconds" }))"
             exit 1
         }
-        Set-IntegrationEnvironment $redis
+        Set-IntegrationEnvironment
     }
     try {
         $probeResults = Join-Path $gateOutput 'probe-results'
@@ -113,7 +109,7 @@ if ($Only) {
         if (Test-Path -LiteralPath $probeTrx) { Remove-Item -LiteralPath $probeTrx -Force }
         Write-Host "PROBE: running one test, '$probeTest' of $probeClass in $probeProject; no gate record or verdict is written"
         $global:LASTEXITCODE = $null
-        dotnet test --project $probeProject --no-build --configuration Release -- --filter-query "/*/*/$probeClass/$probeTest" --report-xunit-trx --report-xunit-trx-filename probe.trx --results-directory=$probeResults
+        dotnet test --project $probeProject --configuration Release -- --filter-query "/*/*/$probeClass/$probeTest" --report-xunit-trx --report-xunit-trx-filename probe.trx --results-directory=$probeResults
         $probeExit = $global:LASTEXITCODE
     }
     finally {
@@ -142,32 +138,39 @@ if ($sonarCarried) {
 }
 else {
     $sonarStartedAt = [DateTimeOffset]::UtcNow
-    $env:JAVA_HOME = Get-SonarScannerJavaHome $beginSonar
-    $global:LASTEXITCODE = $null
-    dotnet-sonarscanner begin /k:"crgolden_Sentinel" /o:"crgolden" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="coverage.opencover.xml" /d:sonar.cs.vscoveragexml.reportsPaths="coverage-integration.xml" /d:sonar.exclusions="**/bin/**,**/obj/**" /d:sonar.coverage.exclusions="**/Program.cs,**/gate.ps1" /d:sonar.qualitygate.wait=true /d:sonar.scanner.skipJreProvisioning=true /d:sonar.scm.use.blame.algorithm=GIT_NATIVE_BLAME /d:sonar.branch.name="$sonarBranch"
-    Assert-StepExit $beginSonar
+    Invoke-GateStep -Name $beginSonar -Always -Body {
+        $env:JAVA_HOME = Get-SonarScannerJavaHome $beginSonar
+        $global:LASTEXITCODE = $null
+        dotnet-sonarscanner begin /k:"crgolden_Sentinel" /o:"crgolden" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="coverage.opencover.xml" /d:sonar.cs.vscoveragexml.reportsPaths="coverage-integration.xml" /d:sonar.exclusions="**/bin/**,**/obj/**" /d:sonar.coverage.exclusions="**/Program.cs,**/gate.ps1" /d:sonar.qualitygate.wait=true /d:sonar.scanner.skipJreProvisioning=true /d:sonar.scm.use.blame.algorithm=GIT_NATIVE_BLAME /d:sonar.branch.name="$sonarBranch"
+        Assert-StepExit $beginSonar
+    }
 
-    $global:LASTEXITCODE = $null
-    dotnet build --no-incremental --configuration Release /p:RestoreLockedMode=true -warnaserror
-    Assert-StepExit $build
+    Invoke-GateStep -Name $build -Always -Body {
+        $global:LASTEXITCODE = $null
+        dotnet build --no-incremental --configuration Release /p:RestoreLockedMode=true -warnaserror
+        Assert-StepExit $build
+    }
 }
 
-$global:LASTEXITCODE = $null
-dotnet tool restore
-Assert-StepExit 'Restore local tools (dotnet tool restore)'
+$restore = 'Restore local tools (dotnet tool restore)'
+Invoke-GateStep -Name $restore -Body {
+    $global:LASTEXITCODE = $null
+    dotnet tool restore
+    Assert-StepExit $restore
+}
 
-if (-not (Test-StepCarried 'jb inspectcode')) {
+Invoke-GateStep -Name 'jb inspectcode' -Needs @($build, $restore) -Body {
     if (Test-Path $sarif) { Remove-Item $sarif -Force }
     dotnet jb inspectcode "$repo\Sentinel.slnx" --no-build -e=WARNING --caches-home="$(New-InspectCodeCache $gateOutput)" --output="$sarif"
     Test-Sarif $sarif
 }
 
-if (-not (Test-StepCarried $unitStep)) {
+Invoke-GateStep -Name $unitStep -Needs @($build, $restore) -Body {
     if (Test-Path $unitTrx) { Remove-Item $unitTrx -Force }
     $global:LASTEXITCODE = $null
     dotnet coverlet Sentinel.Tests.Unit\bin\Release\net11.0 `
         --target "dotnet" `
-        --targetargs "test --project Sentinel.Tests.Unit --no-build --configuration Release -- --filter-trait Category=Unit --stop-on-fail on --report-xunit-trx --report-xunit-trx-filename unit-tests.trx --results-directory=Sentinel.Tests.Unit/bin/Release/net11.0/TestResults" `
+        --targetargs "test --project Sentinel.Tests.Unit --no-build --configuration Release -- --filter-trait Category=Unit --report-xunit-trx --report-xunit-trx-filename unit-tests.trx --results-directory=Sentinel.Tests.Unit/bin/Release/net11.0/TestResults" `
         --format opencover --output "coverage.opencover.xml" `
         --skipautoprops --exclude-by-attribute GeneratedCodeAttribute --exclude-by-file "**/obj/**" `
         --exclude-by-file "**/Program.cs" --does-not-return-attribute DoesNotReturnAttribute --include "[Sentinel]*"
@@ -178,50 +181,59 @@ if (Test-StepCarried $integrationStep) {
     Write-Row $redisStep 'NOT RUN' 'the integration tier carried its verdict, so no Redis is needed'
 }
 else {
-    $redis = Open-IntegrationRedis
-    if ($redis.Missing) { Stop-Gate $redisStep $redis.Missing }
-    $redisFromEnvironment = $redis.FromEnvironment
-    $wslSession = $redis.Session
-    $redisEndpoint = $redis.Endpoint
-    $redisAvailable = $redis.Available
-    try {
-        if ($redisAvailable -and $redisFromEnvironment) {
-            Write-Row $redisStep 'PASS' "RedisHost taken from the environment, and $redisEndpoint accepts connections"
+    Invoke-GateStep -Name $integrationStep -Needs @($build) -Always -Body {
+        $redis = Open-IntegrationRedis
+        if ($redis.Missing) {
+            Write-PrerequisiteUnreached -Step @($integrationStep) -Failed @($redisStep)
+            Stop-Gate $redisStep $redis.Missing
         }
-        elseif ($redisAvailable) {
-            Write-Row $redisStep 'PASS' "a WSL session is open and $redisEndpoint accepts connections"
-        }
-        elseif ($wslSession -and $wslSession.HasExited) {
-            Stop-Gate $redisStep "WSL could not be started (wsl.exe exit $($wslSession.ExitCode)), and the integration tier needs its Redis"
-        }
-        elseif ($redisFromEnvironment) {
-            Stop-Gate $redisStep "nothing accepted a connection on $redisEndpoint (RedisHost from the environment) within 60 seconds"
-        }
-        else {
-            Stop-Gate $redisStep "WSL is running but nothing accepted a connection on $redisEndpoint within 60 seconds"
-        }
+        $redisFromEnvironment = $redis.FromEnvironment
+        $wslSession = $redis.Session
+        $redisEndpoint = $redis.Endpoint
+        $redisAvailable = $redis.Available
+        try {
+            if ($redisAvailable -and $redisFromEnvironment) {
+                Write-Row $redisStep 'PASS' "RedisHost taken from the environment, and $redisEndpoint accepts connections"
+            }
+            elseif ($redisAvailable) {
+                Write-Row $redisStep 'PASS' "a WSL session is open and $redisEndpoint accepts connections"
+            }
+            else {
+                Write-PrerequisiteUnreached -Step @($integrationStep) -Failed @($redisStep)
+                if ($wslSession -and $wslSession.HasExited) {
+                    Stop-Gate $redisStep "WSL could not be started (wsl.exe exit $($wslSession.ExitCode)), and the integration tier needs its Redis"
+                }
+                elseif ($redisFromEnvironment) {
+                    Stop-Gate $redisStep "nothing accepted a connection on $redisEndpoint (RedisHost from the environment) within 60 seconds"
+                }
+                else {
+                    Stop-Gate $redisStep "WSL is running but nothing accepted a connection on $redisEndpoint within 60 seconds"
+                }
+            }
 
-        if ($redisAvailable) {
             if (Test-Path $integrationTrx) { Remove-Item $integrationTrx -Force }
-            if ([string]::IsNullOrWhiteSpace($env:RedisPassword)) { Stop-Gate $integrationStep 'RedisPassword must be set in the environment for the integration tier' }
-            Set-IntegrationEnvironment $redis
+            Set-IntegrationEnvironment
             $global:LASTEXITCODE = $null
             dotnet-coverage collect `
-                "dotnet test --project Sentinel.Tests.Integration --no-build --configuration Release -- --filter-trait Category=Integration --stop-on-fail on --report-xunit-trx --report-xunit-trx-filename integration-tests.trx --results-directory=Sentinel.Tests.Integration/bin/Release/net11.0/TestResults" `
+                "dotnet test --project Sentinel.Tests.Integration --no-build --configuration Release -- --filter-trait Category=Integration --report-xunit-trx --report-xunit-trx-filename integration-tests.trx --results-directory=Sentinel.Tests.Integration/bin/Release/net11.0/TestResults" `
                 -f xml -o "coverage-integration.xml" -s "coverage.settings.xml"
             Test-Trx $integrationStep $integrationTrx $global:LASTEXITCODE -floor 20
         }
-    }
-    finally {
-        Close-IntegrationRedis $redis
+        finally {
+            Close-IntegrationRedis $redis
+        }
     }
 }
 
 if (-not $sonarCarried) {
-    $global:LASTEXITCODE = $null
-    dotnet-sonarscanner end
-    Assert-StepExit $endSonar
-    Assert-NoOpenSonarIssue $sonarIssues 'crgolden_Sentinel' $sonarBranch $sonarStartedAt
+    Invoke-GateStep -Name $endSonar -Needs @($beginSonar, $build, $unitStep, $integrationStep) -Always -Body {
+        $global:LASTEXITCODE = $null
+        dotnet-sonarscanner end
+        Assert-StepExit $endSonar
+    }
+    Invoke-GateStep -Name $sonarIssues -Needs @($endSonar) -Always -Body {
+        Assert-NoOpenSonarIssue $sonarIssues 'crgolden_Sentinel' $sonarBranch $sonarStartedAt
+    }
 }
 
 Write-Row 'Upload test results / dotnet publish / Upload artifact / deploy' 'NOT RUN' 'delivery steps, not checks'

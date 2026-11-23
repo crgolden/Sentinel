@@ -26,6 +26,7 @@ using Sentinel.Dispatch;
 using Sentinel.Feeds;
 using Sentinel.Health;
 using Sentinel.Listeners;
+using Sentinel.Logging;
 using Sentinel.Orchestrator;
 using Serilog;
 using Shared.Extensions;
@@ -214,6 +215,7 @@ try
     var app = builder.Build();
     app.UseSerilogRequestLogging(options =>
     {
+        options.GetLevel = RequestLogLevel.Of;
         options.EnrichDiagnosticContext = (diagnosticContext, _) =>
         {
             if (Activity.Current is null)
