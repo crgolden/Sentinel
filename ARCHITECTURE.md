@@ -24,7 +24,7 @@ decides. Redis holds every piece of state that must outlive a browser tab or a r
 | `Sentinel.Tests.Unit`, `Sentinel.Tests.Integration` | the two test tiers ([TESTING.md](TESTING.md)) |
 | `.github/workflows/main_crgolden-sentinel.yml` | build, inspect, test, analyze and deploy |
 | `NuGet.Config`, `packages.lock.json` files, `dotnet-tools.json`, `global.json`, `coverage.settings.xml` | package sources (`Shared` from GitHub Packages), locked restore, pinned tools, the SDK, integration coverage settings |
-| `gate.ps1` | the maintainers' local gate (README.md, "Gate") |
+| `gate.ps1`, `gate.steps.psd1`, `scripts/gate/` | the maintainers' local gate: its entry point, its step list and the script that holds Redis open around the integration tier (README.md, "Gate") |
 
 ## Data flow of one turn
 
